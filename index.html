@@ -284,7 +284,7 @@
         const db = getFirestore(firebaseApp);
         const appId = "aiportal-ce688";
         const mistralApiKey = "mjVkbhVGVY43LJNMttSLDYOFSYFSkOuv";
-        const PRE_SYSTEM_PROMPT = " [SYSTEM: Si debes terminar, escribe '/stop'. Si el usuario pide generar una imagen, escribe EXCLUSIVAMENTE '[IMG:descripcion detallada]' y nada más en esa respuesta. El frontend lo renderizará.] ";
+        const PRE_SYSTEM_PROMPT = " [SYSTEM: Si debes terminar, escribe '/stop'. Si el usuario pide generar una imagen y SOLO SI EL USUARIO PIDE EXCLUSIVAMENTE UNA IMAGEN Y NADA MAS, escribe EXCLUSIVAMENTE '[IMG:descripcion detallada]' y nada más en esa respuesta. El frontend lo renderizará.] ";
 
         let unsubscribeBots = null;
         let unsubscribeLikes = null;
