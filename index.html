@@ -262,7 +262,7 @@
                     </button>
                     <input type="file" id="file-input" accept="image/*" class="hidden" onchange="app.handleImageUpload(this)">
                     
-                    <input type="text" id="message-input" class="w-full bg-gray-50 border border-gray-300 rounded-xl px-5 py-3 text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 h-[50px]" placeholder="Escribe un mensaje..." autocomplete="off">
+                    <input type="text" id="message-input" class="w-full bg-gray-50 border border-gray-300 rounded-xl px-5 py-3 text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-50 disabled:bg-gray-100 h-[50px]" placeholder="Escribe un mensaje..." autocomplete="off">
                     
                     <button onclick="app.sendMessage()" class="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl w-14 h-[50px] flex items-center justify-center shadow-md disabled:opacity-50 shrink-0" id="send-btn">
                         <i class="fa-solid fa-paper-plane"></i>
@@ -730,40 +730,46 @@
                                     const chunk = json.choices[0].delta.content; fullResponse += chunk; 
                                     
                                     // *** IMAGE GENERATION PARSING ***
-                                    let renderedText = marked.parse(fullResponse);
                                     
+                                    // 1. Detect and Queue
                                     const imgRegex = /\[IMG:(.*?)\]/g;
                                     let match;
                                     while ((match = imgRegex.exec(fullResponse)) !== null) {
                                         const fullTag = match[0];
                                         const prompt = match[1];
-                                        const imgId = "img-" + prompt.replace(/\s+/g, '-').slice(0,10) + Math.random().toString(36).substr(2, 5);
                                         
                                         if (!window.app.state.generatedImages[fullTag]) {
-                                            window.app.state.generatedImages[fullTag] = { id: imgId, status: 'generating' };
+                                            const imgId = "img-" + Math.random().toString(36).substr(2, 9);
+                                            window.app.state.generatedImages[fullTag] = { id: imgId, status: 'generating', prompt: prompt };
                                             window.app.generateImage(prompt, imgId, fullTag); 
                                         }
                                     }
                                     
+                                    // 2. Prepare Display Text (Raw Replacement)
+                                    let displayText = fullResponse;
                                     for (const [tag, data] of Object.entries(window.app.state.generatedImages)) {
-                                        const placeholderHTML = `<div id="${data.id}" class="my-2 rounded-lg overflow-hidden w-72 aspect-square shimmer relative flex items-center justify-center border border-gray-200"><span class="text-gray-400 text-sm font-medium animate-pulse">Generando imagen...</span></div>`;
-                                        renderedText = renderedText.replace(tag, placeholderHTML);
+                                        // Construct HTML - We stick to the placeholder initially, or the final image if ready
+                                        // But to prevent flickering if stream is still going, we prefer the placeholder structure
+                                        // and let the specific element update itself, OR render correct state if repainting.
+                                        
+                                        let html = "";
+                                        if (data.status === 'done') {
+                                             html = `<div class="my-2 w-72 aspect-square relative group">
+                                                        <img src="${data.url}" class="rounded-lg w-full h-full object-cover no-drag border border-gray-200" oncontextmenu="return false;">
+                                                        <button onclick="window.app.downloadImage('${data.url}')" class="absolute top-2 right-2 bg-black/50 hover:bg-black/70 text-white p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
+                                                            <i class="fa-solid fa-download"></i>
+                                                        </button>
+                                                    </div>`;
+                                        } else {
+                                             html = `<div id="${data.id}" class="my-2 rounded-lg overflow-hidden w-72 aspect-square shimmer relative flex items-center justify-center border border-gray-200"><span class="text-gray-400 text-sm font-medium animate-pulse">Generando imagen...</span></div>`;
+                                        }
+                                        
+                                        // Replace global instances in raw text
+                                        displayText = displayText.split(tag).join(html);
                                     }
 
-                                    contentEl.innerHTML = renderedText; 
-                                    
-                                    for (const [tag, data] of Object.entries(window.app.state.generatedImages)) {
-                                        const container = document.getElementById(data.id);
-                                        if (container && data.status === 'done') {
-                                            container.className = "my-2 w-72 aspect-square relative group"; // Added relative group for hover
-                                            container.innerHTML = `
-                                                <img src="${data.url}" class="rounded-lg w-full h-full object-cover no-drag border border-gray-200" oncontextmenu="return false;">
-                                                <button onclick="window.app.downloadImage('${data.url}')" class="absolute top-2 right-2 bg-black/50 hover:bg-black/70 text-white p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
-                                                    <i class="fa-solid fa-download"></i>
-                                                </button>
-                                            `;
-                                        }
-                                    }
+                                    // 3. Render Markdown
+                                    contentEl.innerHTML = marked.parse(displayText);
 
                                     els.chat.container.scrollTop = els.chat.container.scrollHeight;
                                     
