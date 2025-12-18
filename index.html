@@ -162,6 +162,7 @@
                 <div class="flex gap-2 mb-8 overflow-x-auto py-2 scrollbar-hide px-1">
                     <button onclick="app.filterBots('all')" class="filter-btn px-5 py-2 rounded-full bg-white border border-gray-200 hover:border-gray-300 text-sm font-medium text-gray-700 transition-colors shadow-sm active-filter ring-2 ring-indigo-500 text-indigo-700">Todos</button>
                     <button onclick="app.filterBots('private')" class="filter-btn px-5 py-2 rounded-full bg-white border border-gray-200 hover:border-gray-300 text-sm font-medium text-gray-700 transition-colors shadow-sm flex items-center gap-2"><i class="fa-solid fa-lock text-xs"></i> Mis Bots</button>
+                    <button onclick="app.filterBots('liked')" class="filter-btn px-5 py-2 rounded-full bg-white border border-gray-200 hover:border-gray-300 text-sm font-medium text-gray-700 transition-colors shadow-sm flex items-center gap-2 text-pink-600"><i class="fa-solid fa-heart text-xs"></i> Me gustan</button>
                     <div class="w-px h-8 bg-gray-300 mx-1 flex-shrink-0"></div>
                     <button onclick="app.filterBots('Diversión')" class="filter-btn px-5 py-2 rounded-full bg-white border border-gray-200 hover:border-gray-300 text-sm font-medium text-gray-700 shadow-sm">😂 Diversión</button>
                     <button onclick="app.filterBots('Citas')" class="filter-btn px-5 py-2 rounded-full bg-white border border-gray-200 hover:border-gray-300 text-sm font-medium text-gray-700 shadow-sm">💕 Citas</button>
@@ -327,7 +328,8 @@
             user: null, coins: 0, bots: [], currentBot: null, editingBotId: null, 
             draftBot: { name: '', description: '', tag: 'Neutral', avatar: '', systemPrompt: '', isPrivate: false, isPaid: false, price: 0, isDanMode: false },
             chatHistory: [], likedBotIds: [], currentFilter: 'all', searchQuery: '', isChatStopped: false, processingLikes: new Set(), currentLeaderboardTab: 'bots',
-            attachedImage: null, generatedImages: {}
+            attachedImage: null, generatedImages: {},
+            clickCounts: JSON.parse(localStorage.getItem('aiportal_bot_clicks') || '{}')
         };
 
         let els = {};
@@ -429,7 +431,7 @@
                     const d = doc.data();
                     if (!d.isPrivate || (d.isPrivate && d.creatorId === window.app.state.user.uid)) window.app.state.bots.push({ id: doc.id, ...d });
                 });
-                window.app.state.bots.sort(() => Math.random() - 0.5);
+                // Initial sort handled in renderBots
                 window.app.renderBots(window.app.state.currentFilter);
             });
         };
@@ -439,17 +441,45 @@
             document.querySelectorAll('#view-home button.filter-btn').forEach(btn => {
                 let isActive = (category === 'private' && btn.innerText.includes('Mis Bots')) || 
                                (category === 'all' && btn.innerText === 'Todos') || 
-                               (category !== 'private' && category !== 'all' && btn.innerText.includes(category));
+                               (category === 'liked' && btn.innerText.includes('Me gustan')) ||
+                               (category !== 'private' && category !== 'all' && category !== 'liked' && btn.innerText.includes(category));
                 if(isActive) { btn.classList.add('ring-2', 'ring-indigo-500', 'text-indigo-700', 'bg-indigo-50'); btn.classList.remove('text-gray-700'); }
                 else { btn.classList.remove('ring-2', 'ring-indigo-500', 'text-indigo-700', 'bg-indigo-50'); btn.classList.add('text-gray-700'); }
             });
             window.app.renderBots(category);
         };
         const renderBots = (filter) => {
-            els.grid.innerHTML = ''; let filtered = window.app.state.bots; window.app.state.currentFilter = filter;
-            if (filter === 'private') filtered = window.app.state.bots.filter(b => b.creatorId === window.app.state.user.uid);
-            else if (filter !== 'all') filtered = window.app.state.bots.filter(b => b.tag === filter);
+            els.grid.innerHTML = ''; 
+            let filtered = [...window.app.state.bots]; // Create copy for sorting
+            window.app.state.currentFilter = filter;
+            
+            if (filter === 'private') filtered = filtered.filter(b => b.creatorId === window.app.state.user.uid);
+            else if (filter === 'liked') filtered = filtered.filter(b => window.app.state.likedBotIds.includes(b.id));
+            else if (filter !== 'all') filtered = filtered.filter(b => b.tag === filter);
+            
             if (window.app.state.searchQuery) filtered = filtered.filter(b => b.name.toLowerCase().includes(window.app.state.searchQuery));
+            
+            // SORTING LOGIC
+            const now = Date.now();
+            const thirtyMins = 30 * 60 * 1000;
+            
+            filtered.sort((a, b) => {
+                // Check newly created
+                const aCreated = a.createdAt ? (a.createdAt.seconds * 1000) : 0;
+                const bCreated = b.createdAt ? (b.createdAt.seconds * 1000) : 0;
+                const aIsNew = (now - aCreated) < thirtyMins;
+                const bIsNew = (now - bCreated) < thirtyMins;
+
+                // Priority 1: New bots (< 30 mins)
+                if (aIsNew && !bIsNew) return -1;
+                if (!aIsNew && bIsNew) return 1;
+                
+                // Priority 2: Click Count
+                const aClicks = window.app.state.clickCounts[a.id] || 0;
+                const bClicks = window.app.state.clickCounts[b.id] || 0;
+                return bClicks - aClicks; // Descending
+            });
+
             if (filtered.length === 0) { els.grid.innerHTML = `<div class="col-span-full text-center text-gray-400 py-10">No se encontraron bots.</div>`; return; }
             filtered.forEach(bot => {
                 const isCreator = window.app.state.user && window.app.state.user.uid === bot.creatorId;
@@ -468,6 +498,10 @@
         };
         
         const handleBotClick = (bot) => {
+            // Track click
+            window.app.state.clickCounts[bot.id] = (window.app.state.clickCounts[bot.id] || 0) + 1;
+            localStorage.setItem('aiportal_bot_clicks', JSON.stringify(window.app.state.clickCounts));
+
             if (bot.creatorId === window.app.state.user.uid) return window.app.openChat(bot);
             if (bot.isPaid && bot.price > 0) window.app.showPaymentModal(bot);
             else window.app.openChat(bot);
