@@ -686,25 +686,34 @@
         const sendMessage = async () => {
             if (window.app.state.isChatStopped) return;
             const text = els.inputs.message.value.trim(); if (!text && !window.app.state.attachedImage) return;
-            let userContent = text;
+            
+            // --- UI DISPLAY (Clean text) ---
             let displayContent = text;
             if (window.app.state.attachedImage) {
                displayContent = `<img src="${window.app.state.attachedImage}" class="max-w-xs rounded-lg mb-2 block border border-white/20"> ${text}`;
             }
             els.inputs.message.value = ''; window.app.appendMessage('user', displayContent); 
+            
             els.chat.sendBtn.disabled = true;
             els.inputs.message.disabled = true; // Disable input while generating
+            
+            // --- API CONTENT (With Timestamp) ---
+            const now = new Date();
+            const timestamp = `[${now.getDate().toString().padStart(2,'0')}/${(now.getMonth()+1).toString().padStart(2,'0')}/${now.getFullYear()} ${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}]`;
+            const textForBot = `${timestamp} ${text}`;
+
             let apiContent = [];
             let modelToUse = "mistral-medium-latest";
             if (window.app.state.attachedImage) {
                 modelToUse = "pixtral-12b-2409";
-                apiContent = [ { type: "text", text: text || "Describe this image." }, { type: "image_url", image_url: window.app.state.attachedImage } ];
+                apiContent = [ { type: "text", text: textForBot || `${timestamp} Describe this image.` }, { type: "image_url", image_url: window.app.state.attachedImage } ];
                 window.app.state.chatHistory.push({ role: "user", content: apiContent });
             } else {
-                apiContent = text;
+                apiContent = textForBot;
                 window.app.state.chatHistory.push({ role: "user", content: apiContent });
             }
             window.app.clearImageAttachment();
+            
             const placeholderDiv = document.createElement('div'); placeholderDiv.className = 'flex justify-start bot-bubble';
             placeholderDiv.innerHTML = `<div class="bg-gray-100 text-gray-800 rounded-2xl rounded-tl-sm px-5 py-3 shadow-sm prose max-w-[85%]"><span class="typing-dot inline-block"></span></div>`;
             els.chat.container.appendChild(placeholderDiv); els.chat.container.scrollTop = els.chat.container.scrollHeight;
@@ -715,12 +724,12 @@
             const botData = await getBotData(window.app.state.currentBot.id);
             const memories = botData.items || [];
             const lastInteraction = botData.lastInteraction;
-            const now = new Date();
-            
-            let timeContext = `FECHA Y HORA ACTUAL: ${now.toLocaleString('es-ES')}. `;
+            // Time context for system prompt (current general time)
+            const generalNow = new Date();
+            let timeContext = `FECHA Y HORA ACTUAL: ${generalNow.toLocaleString('es-ES')}. `;
             
             if (lastInteraction) {
-                const diffMs = now.getTime() - lastInteraction;
+                const diffMs = generalNow.getTime() - lastInteraction;
                 const diffMins = Math.floor(diffMs / 60000);
                 const diffHours = Math.floor(diffMins / 60);
                 const diffDays = Math.floor(diffHours / 24);
