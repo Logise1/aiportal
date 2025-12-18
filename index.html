@@ -322,6 +322,7 @@
         let unsubscribeBots = null;
         let unsubscribeLikes = null;
         let unsubscribeUserStats = null;
+        let unsubscribeInteractions = null; // New listener for clicks
 
         window.app = {};
         window.app.state = {
@@ -329,7 +330,7 @@
             draftBot: { name: '', description: '', tag: 'Neutral', avatar: '', systemPrompt: '', isPrivate: false, isPaid: false, price: 0, isDanMode: false },
             chatHistory: [], likedBotIds: [], currentFilter: 'all', searchQuery: '', isChatStopped: false, processingLikes: new Set(), currentLeaderboardTab: 'bots',
             attachedImage: null, generatedImages: {},
-            clickCounts: JSON.parse(localStorage.getItem('aiportal_bot_clicks') || '{}')
+            clickCounts: {} // Server synced now
         };
 
         let els = {};
@@ -353,7 +354,7 @@
             };
 
             onAuthStateChanged(auth, async (user) => {
-                if (unsubscribeBots) unsubscribeBots(); if (unsubscribeLikes) unsubscribeLikes(); if (unsubscribeUserStats) unsubscribeUserStats();
+                if (unsubscribeBots) unsubscribeBots(); if (unsubscribeLikes) unsubscribeLikes(); if (unsubscribeUserStats) unsubscribeUserStats(); if (unsubscribeInteractions) unsubscribeInteractions();
                 if (user) {
                     window.app.state.user = user;
                     els.auth.view.classList.add('hidden');
@@ -374,9 +375,18 @@
                         window.app.renderBots(window.app.state.currentFilter);
                     });
 
+                    // Server interactions listener for sorting
+                    const userInteractionsRef = doc(db, 'artifacts', appId, 'users', user.uid, 'data', 'interactions');
+                    unsubscribeInteractions = onSnapshot(userInteractionsRef, (docSnap) => {
+                        window.app.state.clickCounts = docSnap.exists() ? (docSnap.data().clicks || {}) : {};
+                        if (!els.views.home.classList.contains('hidden')) {
+                             window.app.renderBots(window.app.state.currentFilter);
+                        }
+                    });
+
                     window.app.loadBots();
                     window.app.navigate('home');
-                } else { window.app.state.user = null; window.app.state.likedBotIds = []; window.app.state.bots = []; window.app.showAuth(); }
+                } else { window.app.state.user = null; window.app.state.likedBotIds = []; window.app.state.bots = []; window.app.state.clickCounts = {}; window.app.showAuth(); }
             });
             if(els.inputs.message) els.inputs.message.addEventListener('keypress', (e) => { if(e.key === 'Enter') window.app.sendMessage(); });
             if(els.auth.pass) els.auth.pass.addEventListener('keypress', (e) => { if(e.key === 'Enter') window.app.handleAuth(); });
@@ -497,10 +507,14 @@
             });
         };
         
-        const handleBotClick = (bot) => {
-            // Track click
-            window.app.state.clickCounts[bot.id] = (window.app.state.clickCounts[bot.id] || 0) + 1;
-            localStorage.setItem('aiportal_bot_clicks', JSON.stringify(window.app.state.clickCounts));
+        const handleBotClick = async (bot) => {
+            // Track click on server
+            if (window.app.state.user) {
+                const ref = doc(db, 'artifacts', appId, 'users', window.app.state.user.uid, 'data', 'interactions');
+                try {
+                    await setDoc(ref, { clicks: { [bot.id]: increment(1) } }, { merge: true });
+                } catch(e) { console.error(e); }
+            }
 
             if (bot.creatorId === window.app.state.user.uid) return window.app.openChat(bot);
             if (bot.isPaid && bot.price > 0) window.app.showPaymentModal(bot);
