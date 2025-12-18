@@ -661,7 +661,9 @@
             if (window.app.state.attachedImage) {
                displayContent = `<img src="${window.app.state.attachedImage}" class="max-w-xs rounded-lg mb-2 block border border-white/20"> ${text}`;
             }
-            els.inputs.message.value = ''; window.app.appendMessage('user', displayContent); els.chat.sendBtn.disabled = true;
+            els.inputs.message.value = ''; window.app.appendMessage('user', displayContent); 
+            els.chat.sendBtn.disabled = true;
+            els.inputs.message.disabled = true; // Disable input while generating
             let apiContent = [];
             let modelToUse = "mistral-medium-latest";
             if (window.app.state.attachedImage) {
@@ -712,7 +714,11 @@
             }
             if (!success || !resp || !resp.ok) {
                 contentEl.innerHTML = "<span class='text-red-500'>Error de conexión (429/Network). Intenta más tarde.</span>";
-                if (!window.app.state.isChatStopped) { els.chat.sendBtn.disabled = false; els.inputs.message.focus(); }
+                if (!window.app.state.isChatStopped) { 
+                    els.chat.sendBtn.disabled = false; 
+                    els.inputs.message.disabled = false; // Re-enable input on error
+                    els.inputs.message.focus(); 
+                }
                 return;
             }
             try {
@@ -788,14 +794,22 @@
                 if (words.length > 0) {
                     const lengths = words.map(w => w.length); const counts = {}; lengths.forEach(l => counts[l] = (counts[l] || 0) + 1);
                     if (Math.max(...Object.values(counts)) / words.length <= 0.9) {
-                        const reward = words.length; const userStatsRef = doc(db, 'artifacts', appId, 'users', window.app.state.user.uid, 'data', 'stats');
+                        const rawReward = words.length; 
+                        const reward = Math.min(rawReward, 50); // LIMIT MAX COINS TO 50
+                        const userStatsRef = doc(db, 'artifacts', appId, 'users', window.app.state.user.uid, 'data', 'stats');
                         await updateDoc(userStatsRef, { coins: increment(reward) });
                         const publicUserRef = doc(db, 'artifacts', appId, 'public', 'data', 'users_stats', window.app.state.user.uid);
                         setDoc(publicUserRef, { username: window.app.state.user.email.split('@')[0], coins: window.app.state.coins + reward }, { merge: true });
                     } else els.userCoins.innerText = window.app.state.coins;
                 }
             } catch (e) { contentEl.innerHTML = "<span class='text-red-500'>Error de conexión.</span>"; } 
-            finally { if (!window.app.state.isChatStopped) { els.chat.sendBtn.disabled = false; els.inputs.message.focus(); } }
+            finally { 
+                if (!window.app.state.isChatStopped) { 
+                    els.chat.sendBtn.disabled = false; 
+                    els.inputs.message.disabled = false; // Re-enable input
+                    els.inputs.message.focus(); 
+                } 
+            }
         };
 
         const generateImage = (prompt, imgId, fullTag) => {
