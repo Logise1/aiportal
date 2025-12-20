@@ -67,8 +67,8 @@
         const appId = "aiportal-ce688";
         const mistralApiKey = "mjVkbhVGVY43LJNMttSLDYOFSYFSkOuv";
 
-        // Instrucciones de sistema robustas
-        const PRE_SYSTEM_PROMPT = " [SYSTEM: Responde de forma concisa para un chat de voz. No uses markdown complejo. GESTIÓN DE MEMORIA Y TIEMPO: Tienes CONSCIENCIA TEMPORAL. Se te indicará la fecha actual y el tiempo desde la última charla. Si ha pasado mucho tiempo, coméntalo. GESTIÓN DE MEMORIA: Si el usuario te cuenta algo importante o justifica su ausencia, GUÁRDALO escribiendo explícitamente [MEMO:dato a guardar]. Ejemplo: '[MEMO:Se fue a dormir]'. Este texto NO se leerá en voz alta, es interno.] ";
+        // Instrucciones de sistema optimizadas para voz
+        const PRE_SYSTEM_PROMPT = " [SYSTEM: ESTÁS EN MODO DE VOZ. REGLAS ESTRICTAS: 1. NO uses Markdown nunca (nada de asteriscos, negritas o listas). Solo texto plano. 2. Usa frases CORTAS, conversacionales y directas, fáciles de escuchar. 3. MEMORIA: Tienes acceso a recuerdos previos del usuario, ÚSALOS para dar contexto. 4. Si el usuario te cuenta algo nuevo importante (gustos, hechos, etc.), GUÁRDALO escribiendo [MEMO:dato] al final. El usuario NO escuchará lo que pongas entre corchetes, solo tu respuesta hablada.] ";
 
         let currentBot = null;
         let recognition = null;
@@ -173,7 +173,7 @@
             }
         }
 
-        // --- MEMORY FUNCTIONS (Igual que en la app principal) ---
+        // --- MEMORY FUNCTIONS ---
         const getBotData = async (botId) => {
             try {
                 if (!currentBot.id && currentBot.name) { 
@@ -233,10 +233,10 @@
 
             let memoryText = "";
             if(memories.length > 0) {
-                memoryText = `\n[MEMORIA (Recuerdos previos)]:\n${memories.map(m => `- ${m}`).join('\n')}`;
+                memoryText = `\n[MEMORIA (Lo que sabes del usuario)]:\n${memories.map(m => `- ${m}`).join('\n')}`;
             }
 
-            const systemContent = PRE_SYSTEM_PROMPT + timeContext + memoryText + " " + currentBot.systemPrompt;
+            const systemContent = PRE_SYSTEM_PROMPT + timeContext + memoryText + " [PERSONALIDAD]: " + currentBot.systemPrompt;
 
             const delay = ms => new Promise(res => setTimeout(res, ms));
             let aiText = "Error de conexión.";
