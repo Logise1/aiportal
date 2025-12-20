@@ -67,7 +67,7 @@
         const appId = "aiportal-ce688";
         const mistralApiKey = "mjVkbhVGVY43LJNMttSLDYOFSYFSkOuv";
 
-        // Instrucciones de sistema robustas (igual que en la app principal)
+        // Instrucciones de sistema robustas
         const PRE_SYSTEM_PROMPT = " [SYSTEM: Responde de forma concisa para un chat de voz. No uses markdown complejo. GESTIÓN DE MEMORIA Y TIEMPO: Tienes CONSCIENCIA TEMPORAL. Se te indicará la fecha actual y el tiempo desde la última charla. Si ha pasado mucho tiempo, coméntalo. GESTIÓN DE MEMORIA: Si el usuario te cuenta algo importante o justifica su ausencia, GUÁRDALO escribiendo explícitamente [MEMO:dato a guardar]. Ejemplo: '[MEMO:Se fue a dormir]'. Este texto NO se leerá en voz alta, es interno.] ";
 
         let currentBot = null;
@@ -176,12 +176,7 @@
         // --- MEMORY FUNCTIONS (Igual que en la app principal) ---
         const getBotData = async (botId) => {
             try {
-                // Usamos el ID del creador como parte de la clave si no tenemos el ID real del bot (por si acaso viene del localStorage limitado)
-                // Pero idealmente el localStorage debería tener el ID. Asumimos que currentBot tiene 'id' si viene de la app actualizada.
-                // Si no, usamos name + creatorId como fallback precario o fallamos gracefully.
-                // Nota: En la app principal guardamos {id: doc.id, ...data}, así que debería estar.
                 if (!currentBot.id && currentBot.name) { 
-                    // Fallback simple si falta ID
                     return { items: [], lastInteraction: null }; 
                 }
                 const docRef = doc(db, 'artifacts', appId, 'users', currentUser.uid, 'memories', currentBot.id || 'unknown');
@@ -303,37 +298,47 @@
                 await updateLastInteraction(currentBot.id);
             }
             
-            await speak(textToSpeak);
+            speak(textToSpeak);
         }
 
-        async function speak(text) {
+        // --- FUNCIÓN TTS NATIVA DEL NAVEGADOR ---
+        function speak(text) {
             updateUIState('speaking');
-            const url = `https://tts.arielcapdevilagarcia.workers.dev/?text=${encodeURIComponent(text)}&voice=onyx`;
-            const audio = new Audio(url);
             
-            audio.onended = () => {
+            if (!('speechSynthesis' in window)) {
+                alert("Tu navegador no soporta lectura de voz.");
                 updateUIState('idle');
-                // Reiniciar escucha automáticamente tras hablar
+                return;
+            }
+
+            // Cancelar cualquier audio anterior
+            window.speechSynthesis.cancel();
+
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = 'es-ES'; // Forzar español
+            utterance.rate = 1.0; 
+            utterance.pitch = 1.0;
+
+            utterance.onend = () => {
+                updateUIState('idle');
+                // Reiniciar escucha automáticamente tras hablar si no se paró manualmente
                 if (recognition && !manualStop) {
                     setTimeout(() => {
                         try {
                             recognition.start();
                         } catch (e) {
-                            console.log("Reinicio fallido o ya activo", e);
+                            console.log("Reinicio de escucha fallido o ya activo", e);
                         }
                     }, 500); 
                 }
             };
-            
-            audio.onerror = () => {
-                console.error("Audio playback error");
+
+            utterance.onerror = (e) => {
+                console.error("Error en TTS", e);
                 updateUIState('idle');
             };
 
-            try { await audio.play(); } catch (e) { 
-                console.error("Play error", e);
-                updateUIState('idle'); 
-            }
+            window.speechSynthesis.speak(utterance);
         }
     </script>
 </body>
