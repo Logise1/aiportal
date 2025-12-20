@@ -48,7 +48,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, updateDoc, increment } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, doc, updateDoc, increment, getDoc, setDoc, arrayUnion } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         const firebaseConfig = {
           apiKey: "AIzaSyBs4OlJjJ14WPTQ3u-7VkOjgLKCKQypmTI",
@@ -67,10 +67,13 @@
         const appId = "aiportal-ce688";
         const mistralApiKey = "mjVkbhVGVY43LJNMttSLDYOFSYFSkOuv";
 
+        // Instrucciones de sistema robustas (igual que en la app principal)
+        const PRE_SYSTEM_PROMPT = " [SYSTEM: Responde de forma concisa para un chat de voz. No uses markdown complejo. GESTIÓN DE MEMORIA Y TIEMPO: Tienes CONSCIENCIA TEMPORAL. Se te indicará la fecha actual y el tiempo desde la última charla. Si ha pasado mucho tiempo, coméntalo. GESTIÓN DE MEMORIA: Si el usuario te cuenta algo importante o justifica su ausencia, GUÁRDALO escribiendo explícitamente [MEMO:dato a guardar]. Ejemplo: '[MEMO:Se fue a dormir]'. Este texto NO se leerá en voz alta, es interno.] ";
+
         let currentBot = null;
         let recognition = null;
         let isListening = false;
-        let manualStop = false; // Flag para saber si el usuario paró a propósito
+        let manualStop = false;
         let chatHistory = [];
         let currentUser = null;
 
@@ -90,7 +93,7 @@
                 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
                 recognition = new SpeechRecognition();
                 recognition.lang = 'es-ES';
-                recognition.continuous = false;
+                recognition.continuous = false; // Mejor para móviles, reiniciamos manual
                 recognition.interimResults = false;
                 
                 recognition.onstart = () => { isListening = true; updateUIState('listening'); };
@@ -99,24 +102,22 @@
                     isListening = false; 
                     const status = document.getElementById('status-text').innerText;
                     
-                    // Si se paró porque no escuchó nada ('Escuchando...') y NO fue stop manual, REINICIAMOS
-                    if (status === 'Escuchando...' && !manualStop) {
-                        console.log("Reiniciando escucha por silencio...");
+                    // Lógica de "escucha continua mejorada"
+                    if (status !== 'Pensando...' && status !== 'Hablando...' && !manualStop) {
                         setTimeout(() => {
                             try { recognition.start(); } catch(e) { updateUIState('idle'); }
                         }, 200);
-                    } else if (status === 'Escuchando...' && manualStop) {
+                    } else if (manualStop) {
                         updateUIState('idle');
                     }
                 };
                 
                 recognition.onerror = (event) => {
                     console.warn("Speech error", event.error);
-                    // Si el error es 'no-speech', onend se encargará de reiniciar
-                    if (event.error === 'not-allowed') {
+                    if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
                         manualStop = true;
                         updateUIState('idle');
-                        alert("Permiso de micrófono denegado.");
+                        alert("Error de micrófono: " + event.error);
                     }
                 };
 
@@ -132,10 +133,10 @@
         window.toggleListening = () => { 
             if (!recognition) return; 
             if (isListening) {
-                manualStop = true; // Usuario quiere parar
+                manualStop = true;
                 recognition.stop(); 
             } else { 
-                manualStop = false; // Usuario quiere empezar
+                manualStop = false;
                 recognition.start(); 
             }
         };
@@ -144,60 +145,176 @@
             const statusText = document.getElementById('status-text');
             const micPulse = document.getElementById('mic-pulse');
             const ring = document.getElementById('visualizer-ring');
+            const micIcon = document.getElementById('mic-icon');
             
             if (state === 'listening') { 
                 statusText.innerText = "Escuchando..."; 
                 micPulse.classList.add('pulse-ring', 'opacity-100'); 
-                ring.classList.add('scale-110'); 
+                ring.classList.add('scale-110');
+                micIcon.className = "fa-solid fa-microphone-lines text-3xl text-white";
             }
             else if (state === 'thinking') { 
                 statusText.innerText = "Pensando..."; 
                 micPulse.classList.remove('pulse-ring', 'opacity-100'); 
                 ring.classList.add('animate-spin'); 
+                micIcon.className = "fa-solid fa-brain text-3xl text-white animate-pulse";
             }
             else if (state === 'speaking') { 
                 statusText.innerText = "Hablando..."; 
                 ring.classList.remove('animate-spin'); 
                 ring.classList.add('scale-125', 'opacity-50'); 
+                micIcon.className = "fa-solid fa-volume-high text-3xl text-white";
             }
             else { 
                 statusText.innerText = "Toca para hablar"; 
                 micPulse.classList.remove('pulse-ring', 'opacity-100'); 
                 ring.classList.remove('scale-110', 'scale-125', 'animate-spin', 'opacity-50'); 
+                micIcon.className = "fa-solid fa-microphone text-3xl text-white";
             }
         }
 
-        async function processInput(text) {
-            updateUIState('thinking');
-            chatHistory.push({ role: "user", content: text });
+        // --- MEMORY FUNCTIONS (Igual que en la app principal) ---
+        const getBotData = async (botId) => {
             try {
-                const response = await fetch("https://api.mistral.ai/v1/chat/completions", {
-                    method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${mistralApiKey}` },
-                    body: JSON.stringify({ model: "mistral-medium-latest", messages: [{ role: "system", content: "Responde brevemente. " + currentBot.systemPrompt }, ...chatHistory] })
-                });
-                const data = await response.json();
-                const aiText = data.choices[0].message.content;
-                chatHistory.push({ role: "assistant", content: aiText });
-                document.getElementById('bot-text').innerText = aiText;
-                
-                if (currentUser) {
-                    const words = aiText.split(/\s+/).length;
-                    const userStatsRef = doc(db, 'artifacts', appId, 'users', currentUser.uid, 'data', 'stats');
-                    updateDoc(userStatsRef, { coins: increment(words) });
+                // Usamos el ID del creador como parte de la clave si no tenemos el ID real del bot (por si acaso viene del localStorage limitado)
+                // Pero idealmente el localStorage debería tener el ID. Asumimos que currentBot tiene 'id' si viene de la app actualizada.
+                // Si no, usamos name + creatorId como fallback precario o fallamos gracefully.
+                // Nota: En la app principal guardamos {id: doc.id, ...data}, así que debería estar.
+                if (!currentBot.id && currentBot.name) { 
+                    // Fallback simple si falta ID
+                    return { items: [], lastInteraction: null }; 
                 }
-                await speak(aiText);
-            } catch (e) { console.error(e); document.getElementById('bot-text').innerText = "Error."; updateUIState('idle'); }
+                const docRef = doc(db, 'artifacts', appId, 'users', currentUser.uid, 'memories', currentBot.id || 'unknown');
+                const snap = await getDoc(docRef);
+                return snap.exists() ? snap.data() : { items: [], lastInteraction: null };
+            } catch (e) { console.error(e); return { items: [], lastInteraction: null }; }
+        }
+
+        const saveBotMemory = async (botId, text) => {
+            if (!currentUser || !botId) return;
+            try {
+                const now = new Date();
+                const timestampStr = `[${now.getDate().toString().padStart(2,'0')}/${(now.getMonth()+1).toString().padStart(2,'0')}/${now.getFullYear()} ${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}]`;
+                const finalContent = `${timestampStr} ${text}`;
+                
+                const docRef = doc(db, 'artifacts', appId, 'users', currentUser.uid, 'memories', botId);
+                await setDoc(docRef, { items: arrayUnion(finalContent) }, { merge: true });
+                console.log("Memory saved:", finalContent);
+            } catch(e) { console.error("Error saving memory", e); }
+        }
+        
+        const updateLastInteraction = async (botId) => {
+             if (!currentUser || !botId) return;
+             try {
+                const docRef = doc(db, 'artifacts', appId, 'users', currentUser.uid, 'memories', botId);
+                await setDoc(docRef, { lastInteraction: Date.now() }, { merge: true });
+             } catch(e) {}
+        }
+        // ----------------------------------------------------
+
+        async function processInput(text) {
+            if (!currentUser) return;
+            updateUIState('thinking');
+            
+            // Contexto Temporal
+            const now = new Date();
+            const timestamp = `[${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}]`;
+            chatHistory.push({ role: "user", content: `${timestamp} ${text}` });
+
+            // Recuperar Memoria
+            const botData = await getBotData(currentBot.id);
+            const memories = botData.items || [];
+            const lastInteraction = botData.lastInteraction;
+            
+            let timeContext = `FECHA Y HORA: ${now.toLocaleString('es-ES')}. `;
+            if (lastInteraction) {
+                const diffMs = now.getTime() - lastInteraction;
+                const diffMins = Math.floor(diffMs / 60000);
+                if (diffMins > 60) timeContext += `Hace ${Math.floor(diffMins/60)} horas que no habláis. `;
+                else timeContext += `Hace ${diffMins} minutos que no habláis. `;
+            } else {
+                timeContext += "Primera vez que habláis por aquí. ";
+            }
+
+            let memoryText = "";
+            if(memories.length > 0) {
+                memoryText = `\n[MEMORIA (Recuerdos previos)]:\n${memories.map(m => `- ${m}`).join('\n')}`;
+            }
+
+            const systemContent = PRE_SYSTEM_PROMPT + timeContext + memoryText + " " + currentBot.systemPrompt;
+
+            const delay = ms => new Promise(res => setTimeout(res, ms));
+            let aiText = "Error de conexión.";
+            let success = false;
+
+            // Bucle de reintentos (Retries)
+            for(let i=0; i<3; i++) {
+                try {
+                    const response = await fetch("https://api.mistral.ai/v1/chat/completions", {
+                        method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${mistralApiKey}` },
+                        body: JSON.stringify({ 
+                            model: "mistral-medium-latest", 
+                            messages: [{ role: "system", content: systemContent }, ...chatHistory] 
+                        })
+                    });
+                    
+                    if (response.status === 429) {
+                        console.warn("Rate limit, retrying...");
+                        await delay(1000 * (i + 1));
+                        continue;
+                    }
+                    
+                    if (!response.ok) throw new Error("API Error");
+                    
+                    const data = await response.json();
+                    aiText = data.choices[0].message.content;
+                    success = true;
+                    break;
+                } catch (e) {
+                    console.error("Attempt " + (i+1) + " failed", e);
+                    if (i < 2) await delay(1000);
+                }
+            }
+
+            if (!success) {
+                document.getElementById('bot-text').innerText = "Lo siento, no puedo responder ahora.";
+                updateUIState('idle');
+                return;
+            }
+
+            // Procesar Memos en la respuesta
+            const memoRegex = /\[MEMO:(.*?)\]/g;
+            let match;
+            while ((match = memoRegex.exec(aiText)) !== null) {
+                await saveBotMemory(currentBot.id, match[1]);
+            }
+            
+            // Limpiar texto para hablar (quitar memos y timestamps si los hubiera)
+            const textToSpeak = aiText.replace(/\[MEMO:.*?\]/g, "").trim();
+            
+            chatHistory.push({ role: "assistant", content: aiText });
+            document.getElementById('bot-text').innerText = textToSpeak;
+            
+            // Actualizar estadísticas y última interacción
+            if (currentUser && currentBot.id) {
+                const words = textToSpeak.split(/\s+/).length;
+                const userStatsRef = doc(db, 'artifacts', appId, 'users', currentUser.uid, 'data', 'stats');
+                updateDoc(userStatsRef, { coins: increment(words) }).catch(e=>{});
+                await updateLastInteraction(currentBot.id);
+            }
+            
+            await speak(textToSpeak);
         }
 
         async function speak(text) {
             updateUIState('speaking');
             const url = `https://tts.arielcapdevilagarcia.workers.dev/?text=${encodeURIComponent(text)}&voice=onyx`;
             const audio = new Audio(url);
+            
             audio.onended = () => {
                 updateUIState('idle');
                 // Reiniciar escucha automáticamente tras hablar
-                if (recognition) {
-                    manualStop = false; // Asegurar que no está marcado como parada manual
+                if (recognition && !manualStop) {
                     setTimeout(() => {
                         try {
                             recognition.start();
@@ -207,7 +324,16 @@
                     }, 500); 
                 }
             };
-            try { await audio.play(); } catch (e) { updateUIState('idle'); }
+            
+            audio.onerror = () => {
+                console.error("Audio playback error");
+                updateUIState('idle');
+            };
+
+            try { await audio.play(); } catch (e) { 
+                console.error("Play error", e);
+                updateUIState('idle'); 
+            }
         }
     </script>
 </body>
