@@ -251,45 +251,63 @@
         </div>
 
         <!-- CHAT VIEW (FIXED POSITIONING FOR MOBILE) -->
-        <div id="view-chat" class="fixed inset-0 bg-white z-[60] hidden flex flex-col h-[100dvh]">
-            <div class="px-6 py-4 border-b border-gray-200 bg-white flex justify-between items-center shadow-sm z-10 flex-shrink-0">
-                <div class="flex items-center gap-4">
-                    <button onclick="app.navigate('home')" class="text-gray-400 hover:text-indigo-600"><i class="fa-solid fa-arrow-left text-lg"></i></button>
-                    <div id="chat-header-info" class="flex items-center gap-3"></div>
-                </div>
-                <div class="flex items-center gap-2">
-                    <button onclick="app.openVoiceChat(window.app.state.currentBot)" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-600 px-3 py-2 rounded-full text-sm font-bold flex items-center gap-2 transition-colors border border-indigo-200" title="Pasar a chat de voz">
-                        <i class="fa-solid fa-microphone"></i> <span class="hidden sm:inline">Voz</span>
-                    </button>
-                    <button onclick="app.askClearChat()" class="text-gray-400 hover:text-red-500 w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-50 transition-all"><i class="fa-solid fa-trash-can"></i></button>
-                </div>
-            </div>
+        <div id="view-chat" class="fixed inset-0 bg-white z-[60] hidden flex flex-row h-[100dvh]">
             
-            <div id="chat-messages" class="flex-1 overflow-y-auto p-4 space-y-6 scroll-smooth bg-white"></div>
-            
-            <!-- Image Preview Area -->
-            <div id="img-preview-container" class="px-4 pb-2 bg-white hidden flex-shrink-0">
-                <div class="relative inline-block">
-                    <img id="img-preview" src="" class="h-20 w-auto rounded-lg border border-gray-300 shadow-sm object-cover">
-                    <button onclick="app.clearImageAttachment()" class="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs hover:bg-red-600"><i class="fa-solid fa-xmark"></i></button>
+            <!-- Mobile Sidebar Backdrop -->
+            <div id="chat-sidebar-backdrop" onclick="app.toggleChatSidebar()" class="absolute inset-0 bg-black/50 z-20 hidden md:hidden backdrop-blur-sm transition-opacity"></div>
+
+            <!-- Sidebar for Chats -->
+            <div id="chat-sidebar" class="absolute md:relative z-30 h-full w-[85%] max-w-[320px] md:w-64 bg-gray-50 border-r border-gray-200 flex flex-col transition-transform duration-300 transform -translate-x-full md:translate-x-0 shadow-2xl md:shadow-none">
+                <div class="px-4 py-4 border-b border-gray-200 flex justify-between items-center bg-white shrink-0">
+                    <h3 class="font-bold text-gray-800"><i class="fa-solid fa-comments text-indigo-500 mr-2"></i> Mis Chats</h3>
+                    <button onclick="app.toggleChatSidebar()" class="md:hidden text-gray-500 hover:text-indigo-600"><i class="fa-solid fa-xmark text-lg"></i></button>
                 </div>
+                <div id="chat-sidebar-list" class="flex-1 overflow-y-auto p-2 space-y-1"></div>
             </div>
 
-            <!-- Chat Input (WITH SAFE AREA PADDING) -->
-            <div id="chat-input-container" class="p-4 bg-white border-t border-gray-200 flex-shrink-0 pb-safe">
-                <div class="max-w-4xl mx-auto relative flex gap-2 items-end">
-                    <button onclick="document.getElementById('file-input').click()" class="bg-gray-100 hover:bg-gray-200 text-gray-500 p-3 rounded-xl transition-colors h-[50px] w-[50px] flex items-center justify-center shrink-0">
-                        <i class="fa-solid fa-paperclip text-lg"></i>
-                    </button>
-                    <input type="file" id="file-input" accept="image/*" class="hidden" onchange="app.handleImageUpload(this)">
-                    
-                    <input type="text" id="message-input" class="w-full bg-gray-50 border border-gray-300 rounded-xl px-5 py-3 text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-50 disabled:bg-gray-100 h-[50px]" placeholder="Escribe un mensaje..." autocomplete="off">
-                    
-                    <button onclick="app.sendMessage()" class="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl w-14 h-[50px] flex items-center justify-center shadow-md disabled:opacity-50 shrink-0" id="send-btn">
-                        <i class="fa-solid fa-paper-plane"></i>
-                    </button>
+            <!-- Main Chat Area -->
+            <div class="flex-1 flex flex-col h-full relative overflow-hidden">
+                <div class="px-6 py-4 border-b border-gray-200 bg-white flex justify-between items-center shadow-sm z-10 flex-shrink-0">
+                    <div class="flex items-center gap-4 min-w-0">
+                        <button onclick="app.navigate('home')" class="text-gray-400 hover:text-indigo-600 shrink-0"><i class="fa-solid fa-arrow-left text-lg"></i></button>
+                        <button onclick="app.toggleChatSidebar()" class="md:hidden text-gray-400 hover:text-indigo-600 shrink-0"><i class="fa-solid fa-bars text-lg"></i></button>
+                        <div id="chat-header-info" class="flex items-center gap-3 min-w-0"></div>
+                    </div>
+                    <div class="flex items-center gap-2 shrink-0">
+                        <button onclick="app.createNewSessionForBot(window.app.state.currentBot)" class="text-gray-400 hover:text-indigo-600 w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-50 transition-all" title="Nuevo chat con este personaje"><i class="fa-solid fa-plus"></i></button>
+                        <button onclick="app.openVoiceChat(window.app.state.currentBot)" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-600 px-3 py-2 rounded-full text-sm font-bold flex items-center gap-2 transition-colors border border-indigo-200" title="Pasar a chat de voz">
+                            <i class="fa-solid fa-microphone"></i> <span class="hidden sm:inline">Voz</span>
+                        </button>
+                        <button onclick="app.askClearChat()" class="text-gray-400 hover:text-red-500 w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-50 transition-all" title="Borrar historial"><i class="fa-solid fa-trash-can"></i></button>
+                    </div>
                 </div>
-                <div id="chat-status-msg" class="text-center text-xs text-red-500 mt-2 hidden font-medium"></div>
+                
+                <div id="chat-messages" class="flex-1 overflow-y-auto p-4 space-y-6 scroll-smooth bg-white"></div>
+                
+                <!-- Image Preview Area -->
+                <div id="img-preview-container" class="px-4 pb-2 bg-white hidden flex-shrink-0">
+                    <div class="relative inline-block">
+                        <img id="img-preview" src="" class="h-20 w-auto rounded-lg border border-gray-300 shadow-sm object-cover">
+                        <button onclick="app.clearImageAttachment()" class="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs hover:bg-red-600"><i class="fa-solid fa-xmark"></i></button>
+                    </div>
+                </div>
+
+                <!-- Chat Input (WITH SAFE AREA PADDING) -->
+                <div id="chat-input-container" class="p-4 bg-white border-t border-gray-200 flex-shrink-0 pb-safe">
+                    <div class="max-w-4xl mx-auto relative flex gap-2 items-end">
+                        <button onclick="document.getElementById('file-input').click()" class="bg-gray-100 hover:bg-gray-200 text-gray-500 p-3 rounded-xl transition-colors h-[50px] w-[50px] flex items-center justify-center shrink-0">
+                            <i class="fa-solid fa-paperclip text-lg"></i>
+                        </button>
+                        <input type="file" id="file-input" accept="image/*" class="hidden" onchange="app.handleImageUpload(this)">
+                        
+                        <input type="text" id="message-input" class="w-full bg-gray-50 border border-gray-300 rounded-xl px-5 py-3 text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-50 disabled:bg-gray-100 h-[50px]" placeholder="Escribe un mensaje..." autocomplete="off">
+                        
+                        <button onclick="app.sendMessage()" class="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl w-14 h-[50px] flex items-center justify-center shadow-md disabled:opacity-50 shrink-0" id="send-btn">
+                            <i class="fa-solid fa-paper-plane"></i>
+                        </button>
+                    </div>
+                    <div id="chat-status-msg" class="text-center text-xs text-red-500 mt-2 hidden font-medium"></div>
+                </div>
             </div>
         </div>
 
@@ -334,7 +352,8 @@
             draftBot: { name: '', description: '', tag: 'Neutral', avatar: '', systemPrompt: '', isPrivate: false, isPaid: false, price: 0, isDanMode: false },
             chatHistory: [], likedBotIds: [], currentFilter: 'all', searchQuery: '', isChatStopped: false, processingLikes: new Set(), currentLeaderboardTab: 'bots',
             attachedImage: null, generatedImages: {},
-            clickCounts: {} 
+            clickCounts: {},
+            currentSessionId: null, currentSessionName: "" 
         };
 
         let els = {};
@@ -352,7 +371,7 @@
                 inputs: { name: document.getElementById('input-name'), desc: document.getElementById('input-desc'), tag: document.getElementById('input-tag'), system: document.getElementById('input-system'), isPrivate: document.getElementById('input-private'), isPaid: document.getElementById('input-paid'), isDan: document.getElementById('input-dan'), price: document.getElementById('input-price'), message: document.getElementById('message-input') },
                 priceContainer: document.getElementById('price-container'), 
                 avatarPreview: document.getElementById('avatar-preview'), avatarUploadStatus: document.getElementById('avatar-upload-status'),
-                chat: { container: document.getElementById('chat-messages'), header: document.getElementById('chat-header-info'), sendBtn: document.getElementById('send-btn'), statusMsg: document.getElementById('chat-status-msg'), imgPreview: document.getElementById('img-preview-container'), imgPreviewSrc: document.getElementById('img-preview') },
+                chat: { container: document.getElementById('chat-messages'), header: document.getElementById('chat-header-info'), sendBtn: document.getElementById('send-btn'), statusMsg: document.getElementById('chat-status-msg'), imgPreview: document.getElementById('img-preview-container'), imgPreviewSrc: document.getElementById('img-preview'), sidebar: document.getElementById('chat-sidebar'), sidebarList: document.getElementById('chat-sidebar-list'), backdrop: document.getElementById('chat-sidebar-backdrop') },
                 leaderboardList: document.getElementById('leaderboard-list'), tabBots: document.getElementById('tab-bots'), tabUsers: document.getElementById('tab-users'),
                 modal: { overlay: document.getElementById('global-modal'), content: document.getElementById('modal-content'), title: document.getElementById('modal-title'), msg: document.getElementById('modal-msg'), actions: document.getElementById('modal-actions'), icon: document.getElementById('modal-icon') }
             };
@@ -383,8 +402,8 @@
                     const userInteractionsRef = doc(db, 'artifacts', appId, 'users', user.uid, 'data', 'interactions');
                     unsubscribeInteractions = onSnapshot(userInteractionsRef, (docSnap) => {
                         window.app.state.clickCounts = docSnap.exists() ? (docSnap.data().clicks || {}) : {};
-                        if (!els.views.home.classList.contains('hidden')) {
-                             window.app.renderBots(window.app.state.currentFilter);
+                        if (!els.views.home.classList.contains('hidden')) { 
+                            window.app.renderBots(window.app.state.currentFilter);
                         }
                     });
 
@@ -430,14 +449,26 @@
             } catch (e) { window.app.showModal({ title: "Error", body: "Credenciales incorrectas.", icon: 'warning', buttons: [{ text: "OK" }]}); }
         };
         const logout = () => signOut(auth);
+        
         const navigate = (viewName) => { 
             Object.values(els.views).forEach(el => el.classList.add('hidden')); 
             els.views[viewName].classList.remove('hidden'); 
             if (viewName === 'home') els.navCoinsContainer.classList.add('hidden'); else els.navCoinsContainer.classList.remove('hidden');
+            if (viewName === 'home' && els.chat && els.chat.sidebar && !els.chat.sidebar.classList.contains('-translate-x-full')) {
+                window.app.toggleChatSidebar(); 
+            }
         };
 
         const togglePriceInput = () => { if (els.inputs.isPaid.checked) els.priceContainer.classList.remove('hidden'); else els.priceContainer.classList.add('hidden'); };
         
+        const scrollToBottom = () => {
+            setTimeout(() => {
+                if(els.chat.container) {
+                    els.chat.container.scrollTop = els.chat.container.scrollHeight;
+                }
+            }, 150); // delay to let images render slightly
+        };
+
         const loadBots = () => {
             unsubscribeBots = onSnapshot(query(collection(db, 'botverse_public_bots')), (snapshot) => {
                 window.app.state.bots = [];
@@ -445,7 +476,6 @@
                     const d = doc.data();
                     if (!d.isPrivate || (d.isPrivate && d.creatorId === window.app.state.user.uid)) window.app.state.bots.push({ id: doc.id, ...d });
                 });
-                // Initial sort handled in renderBots
                 window.app.renderBots(window.app.state.currentFilter);
             });
         };
@@ -453,8 +483,8 @@
         const filterBots = (category) => {
             window.app.state.currentFilter = category;
             document.querySelectorAll('#view-home button.filter-btn').forEach(btn => {
-                let isActive = (category === 'private' && btn.innerText.includes('Mis Bots')) || 
-                               (category === 'all' && btn.innerText === 'Todos') || 
+                let isActive = (category === 'private' && btn.innerText.includes('Mis Bots')) ||
+                               (category === 'all' && btn.innerText === 'Todos') ||
                                (category === 'liked' && btn.innerText.includes('Me gustan')) ||
                                (category !== 'private' && category !== 'all' && category !== 'liked' && btn.innerText.includes(category));
                 if(isActive) { btn.classList.add('ring-2', 'ring-indigo-500', 'text-indigo-700', 'bg-indigo-50'); btn.classList.remove('text-gray-700'); }
@@ -464,7 +494,7 @@
         };
         const renderBots = (filter) => {
             els.grid.innerHTML = ''; 
-            let filtered = [...window.app.state.bots]; // Create copy for sorting
+            let filtered = [...window.app.state.bots]; 
             window.app.state.currentFilter = filter;
             
             if (filter === 'private') filtered = filtered.filter(b => b.creatorId === window.app.state.user.uid);
@@ -473,25 +503,21 @@
             
             if (window.app.state.searchQuery) filtered = filtered.filter(b => b.name.toLowerCase().includes(window.app.state.searchQuery));
             
-            // SORTING LOGIC
             const now = Date.now();
             const thirtyMins = 30 * 60 * 1000;
             
             filtered.sort((a, b) => {
-                // Check newly created
                 const aCreated = a.createdAt ? (a.createdAt.seconds * 1000) : 0;
                 const bCreated = b.createdAt ? (b.createdAt.seconds * 1000) : 0;
                 const aIsNew = (now - aCreated) < thirtyMins;
                 const bIsNew = (now - bCreated) < thirtyMins;
 
-                // Priority 1: New bots (< 30 mins)
                 if (aIsNew && !bIsNew) return -1;
                 if (!aIsNew && bIsNew) return 1;
                 
-                // Priority 2: Click Count
                 const aClicks = window.app.state.clickCounts[a.id] || 0;
                 const bClicks = window.app.state.clickCounts[b.id] || 0;
-                return bClicks - aClicks; // Descending
+                return bClicks - aClicks; 
             });
 
             if (filtered.length === 0) { els.grid.innerHTML = `<div class="col-span-full text-center text-gray-400 py-10">No se encontraron bots.</div>`; return; }
@@ -512,24 +538,19 @@
         };
         
         const handleBotClick = async (bot) => {
-            // Track click on server
             if (window.app.state.user) {
                 const ref = doc(db, 'artifacts', appId, 'users', window.app.state.user.uid, 'data', 'interactions');
-                try {
-                    await setDoc(ref, { clicks: { [bot.id]: increment(1) } }, { merge: true });
-                } catch(e) { console.error(e); }
+                try { await setDoc(ref, { clicks: { [bot.id]: increment(1) } }, { merge: true }); } catch(e) { }
             }
-
             if (bot.creatorId === window.app.state.user.uid) return window.app.openChat(bot);
             if (bot.isPaid && bot.price > 0) window.app.showPaymentModal(bot);
             else window.app.openChat(bot);
         };
+        
         const showPaymentModal = (bot) => {
             window.app.showModal({ title: "Bot de Pago", body: `Este chat cuesta ${bot.price} monedas. ¿Quieres entrar?`, icon: 'money', buttons: [{ text: "Cancelar" }, { text: `Pagar ${bot.price} 🪙`, class: "bg-amber-500 text-white hover:bg-amber-600", action: () => window.app.processPayment(bot) }] });
         };
-        const showChatModeSelection = (bot) => {
-            window.app.showModal({ title: `Chatear con ${bot.name}`, body: "Elige modo:", icon: 'chat', buttons: [{ text: "Texto Normal ⌨️", class: "bg-white border-gray-300 text-gray-700 hover:bg-gray-50", action: () => window.app.openChat(bot) }, { text: "Chat de Voz 🎙️", class: "bg-indigo-600 text-white hover:bg-indigo-700", action: () => window.app.openVoiceChat(bot) }] });
-        };
+        
         const processPayment = async (bot) => {
             if (window.app.state.coins < bot.price) return window.app.showModal({ title: "Saldo Insuficiente", body: "No tienes suficientes monedas.", icon: 'warning', buttons: [{ text: "OK" }] });
             try {
@@ -542,17 +563,181 @@
                 window.app.openChat(bot);
             } catch (e) { window.app.showModal({ title: "Error", body: "Pago fallido.", icon: 'warning', buttons: [{ text: "OK" }] }); }
         };
-        const openChat = (bot) => {
-            window.app.state.currentBot = bot; window.app.state.chatHistory = []; window.app.state.isChatStopped = false;
-            window.app.state.attachedImage = null; clearImageAttachment(); 
-            els.inputs.message.disabled = false; els.chat.sendBtn.disabled = false; els.chat.statusMsg.classList.add('hidden'); els.chat.container.innerHTML = '';
-            const isEmoji = bot.avatar && !bot.avatar.startsWith('http');
-            const avatarImg = isEmoji ? `<div class="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center text-xl">${bot.avatar}</div>` : `<img src="${bot.avatar}" class="w-10 h-10 rounded-full object-cover">`;
-            const danBadge = bot.isDanMode ? '<span class="text-xs font-bold text-red-600 bg-red-100 px-2 py-0.5 rounded border border-red-200 ml-2">🔥 SIN CENSURA</span>' : '';
-            els.chat.header.innerHTML = `${avatarImg} <div><h3 class="font-bold text-gray-900 leading-tight flex items-center">${bot.name} ${danBadge}</h3><span class="text-xs bg-gray-100 px-2 rounded text-gray-500">${bot.tag}</span></div>`;
-            window.app.navigate('chat');
-            window.app.appendMessage('model', `*${bot.name} entra al chat.*`);
+
+        const toggleChatSidebar = () => {
+            if (els.chat.sidebar) {
+                els.chat.sidebar.classList.toggle('-translate-x-full');
+                if (els.chat.backdrop) els.chat.backdrop.classList.toggle('hidden');
+            }
         };
+
+        const renderChatHeader = () => {
+            const bot = window.app.state.currentBot;
+            if(!bot) return;
+            const isEmoji = bot.avatar && !bot.avatar.startsWith('http');
+            const avatarImg = isEmoji ? `<div class="w-10 h-10 shrink-0 bg-gray-100 rounded-full flex items-center justify-center text-xl">${bot.avatar}</div>` : `<img src="${bot.avatar}" class="w-10 h-10 shrink-0 rounded-full object-cover">`;
+            const danBadge = bot.isDanMode ? '<span class="text-xs font-bold text-red-600 bg-red-100 px-2 py-0.5 rounded border border-red-200 ml-2 shrink-0">🔥 DAN</span>' : '';
+            const sessionName = window.app.state.currentSessionName || "Chat";
+            els.chat.header.innerHTML = `${avatarImg} <div class="min-w-0 flex-1"><h3 class="font-bold text-gray-900 leading-tight flex items-center truncate">${bot.name} ${danBadge}</h3><div class="flex items-center gap-2 mt-0.5"><span class="text-xs bg-gray-100 px-2 rounded text-gray-500 truncate" title="${sessionName}">${sessionName}</span><button onclick="app.renameCurrentSession()" class="text-gray-400 hover:text-indigo-600 shrink-0"><i class="fa-solid fa-pencil text-xs"></i></button></div></div>`;
+        };
+
+        const renameCurrentSession = () => {
+            const newName = prompt("Nuevo nombre para el chat:", window.app.state.currentSessionName);
+            if (newName && newName.trim() !== "") {
+                window.app.state.currentSessionName = newName.trim();
+                window.app.renderChatHeader();
+                if (window.app.state.user && window.app.state.currentSessionId && window.app.state.currentSessionId !== 'local') {
+                    const sessionRef = doc(db, 'artifacts', appId, 'users', window.app.state.user.uid, 'chat_sessions', window.app.state.currentSessionId);
+                    setDoc(sessionRef, { name: window.app.state.currentSessionName, updatedAt: Date.now() }, { merge: true })
+                        .then(() => window.app.loadChatSidebar());
+                }
+            }
+        };
+
+        const createNewSessionForBot = async (bot) => {
+            if (!window.app.state.user) {
+                window.app.showModal({ title: "Atención", body: "Debes iniciar sesión para crear múltiples chats.", icon: "info", buttons: [{ text: "OK" }] });
+                return;
+            }
+            try {
+                const newSessionRef = doc(collection(db, 'artifacts', appId, 'users', window.app.state.user.uid, 'chat_sessions'));
+                const newSessionData = { botId: bot.id, name: "Nuevo Chat", messages: [], updatedAt: Date.now(), createdAt: Date.now() };
+                await setDoc(newSessionRef, newSessionData);
+                window.app.openChat(bot, newSessionRef.id);
+            } catch(e) { console.error(e); }
+        };
+
+        const loadChatSidebar = async () => {
+            if (!window.app.state.user || !els.chat.sidebarList) return;
+            els.chat.sidebarList.innerHTML = '<div class="text-center py-4 text-xs text-gray-400"><i class="fa-solid fa-circle-notch fa-spin"></i></div>';
+            try {
+                const sessionsSnap = await getDocs(collection(db, 'artifacts', appId, 'users', window.app.state.user.uid, 'chat_sessions'));
+                let sessions = [];
+                sessionsSnap.forEach(doc => sessions.push({ id: doc.id, ...doc.data() }));
+
+                sessions.sort((a, b) => b.updatedAt - a.updatedAt);
+                els.chat.sidebarList.innerHTML = '';
+                
+                if(sessions.length === 0) {
+                    els.chat.sidebarList.innerHTML = '<div class="text-center p-4 text-xs text-gray-400">No hay chats recientes</div>';
+                    return;
+                }
+
+                sessions.forEach(session => {
+                    const bot = window.app.state.bots.find(b => b.id === session.botId);
+                    if (bot) {
+                        const isCurrent = window.app.state.currentSessionId === session.id;
+                        const div = document.createElement('div');
+                        div.className = `p-2 rounded-lg cursor-pointer flex items-center gap-3 transition-colors ${isCurrent ? 'bg-indigo-100 border border-indigo-200' : 'hover:bg-gray-200 border border-transparent'}`;
+                        div.onclick = () => {
+                            if (window.innerWidth < 768 && !els.chat.sidebar.classList.contains('-translate-x-full')) window.app.toggleChatSidebar(); 
+                            window.app.openChat(bot, session.id);
+                        };
+                        const avatarHtml = bot.avatar && !bot.avatar.startsWith('http') ? `<div class="w-8 h-8 shrink-0 bg-white rounded-full flex items-center justify-center text-sm shadow-sm">${bot.avatar}</div>` : `<img src="${bot.avatar}" class="w-8 h-8 shrink-0 rounded-full object-cover shadow-sm">`;
+                        div.innerHTML = `${avatarHtml} <div class="flex-1 min-w-0"><h4 class="text-sm font-bold text-gray-900 truncate">${bot.name}</h4><p class="text-xs text-gray-500 truncate">${session.name || 'Chat'}</p></div>`;
+                        els.chat.sidebarList.appendChild(div);
+                    }
+                });
+            } catch(e) {
+                console.error(e);
+                els.chat.sidebarList.innerHTML = '<div class="text-center p-4 text-xs text-red-400">Error al cargar</div>';
+            }
+        };
+
+        const openChat = async (bot, specificSessionId = null) => {
+            window.app.state.currentBot = bot; 
+            window.app.state.chatHistory = []; 
+            window.app.state.isChatStopped = false;
+            window.app.state.attachedImage = null; 
+            window.app.clearImageAttachment(); 
+            
+            els.inputs.message.disabled = true; 
+            els.chat.sendBtn.disabled = true; 
+            els.chat.statusMsg.classList.add('hidden'); 
+            els.chat.container.innerHTML = '<div class="flex items-center justify-center h-full"><div class="text-center text-gray-400"><i class="fa-solid fa-circle-notch fa-spin text-3xl mb-3"></i><p>Cargando historial...</p></div></div>';
+
+            window.app.navigate('chat');
+
+            if (window.app.state.user) {
+                try {
+                    // Fetch all sessions (to comply with simple queries rule)
+                    const sessionsSnap = await getDocs(collection(db, 'artifacts', appId, 'users', window.app.state.user.uid, 'chat_sessions'));
+                    let allSessions = [];
+                    sessionsSnap.forEach(d => allSessions.push({ id: d.id, ...d.data() }));
+                    
+                    let botSessions = allSessions.filter(s => s.botId === bot.id);
+                    botSessions.sort((a, b) => b.updatedAt - a.updatedAt);
+                    
+                    let activeSession = null;
+                    if (specificSessionId) {
+                        activeSession = botSessions.find(s => s.id === specificSessionId);
+                    } else if (botSessions.length > 0) {
+                        activeSession = botSessions[0]; // Cargar más reciente por defecto
+                    } else {
+                        // Crear primera sesión nueva
+                        const newSessionRef = doc(collection(db, 'artifacts', appId, 'users', window.app.state.user.uid, 'chat_sessions'));
+                        const newSessionData = { botId: bot.id, name: "Chat 1", messages: [], updatedAt: Date.now(), createdAt: Date.now() };
+                        await setDoc(newSessionRef, newSessionData);
+                        activeSession = { id: newSessionRef.id, ...newSessionData };
+                    }
+                    
+                    window.app.state.currentSessionId = activeSession.id;
+                    window.app.state.currentSessionName = activeSession.name;
+                    window.app.renderChatHeader();
+                    window.app.loadChatSidebar();
+                    
+                    els.chat.container.innerHTML = '';
+
+                    if (activeSession.messages && activeSession.messages.length > 0) {
+                        window.app.state.chatHistory = activeSession.messages.map(m => ({ role: m.role, content: m.content }));
+                        
+                        activeSession.messages.forEach(msg => {
+                            if (msg.role === 'user') {
+                                let displayHtml = "";
+                                if (Array.isArray(msg.content)) {
+                                    const textPart = msg.content.find(c => c.type === 'text')?.text || '';
+                                    const imgPart = msg.content.find(c => c.type === 'image_url')?.image_url || '';
+                                    let cleanText = textPart.replace(/\[\d{2}\/\d{2}\/\d{4} \d{2}:\d{2}\]\s*/, '');
+                                    displayHtml = cleanText;
+                                    if (imgPart) {
+                                        displayHtml = `<img src="${imgPart}" class="max-w-xs rounded-lg mb-2 block border border-white/20"> ${cleanText}`;
+                                    }
+                                } else {
+                                    displayHtml = msg.content.replace(/\[\d{2}\/\d{2}\/\d{4} \d{2}:\d{2}\]\s*/, '');
+                                }
+                                window.app.appendMessage('user', displayHtml);
+                            } else if (msg.role === 'assistant' || msg.role === 'model') {
+                                let tempMarkdown = msg.content.replace(/\[MEMO:(.*?)\]/g, "");
+                                tempMarkdown = tempMarkdown.replace(/\[IMG:(.*?)\]/g, (match, prompt) => {
+                                    const encodedPrompt = encodeURIComponent(prompt);
+                                    const seed = (prompt.length * 42) % 1000;
+                                    const url = `https://freeai.logise1123.workers.dev/image/${encodedPrompt}?raw=true&nologo=true&seed=${seed}`;
+                                    return `\n\n<div class="my-2 w-72 aspect-square relative group"><img src="${url}" class="rounded-lg w-full h-full object-cover border border-gray-200"></div>\n\n`;
+                                });
+                                window.app.appendMessage(msg.role, tempMarkdown);
+                            }
+                        });
+                    } else {
+                        window.app.appendMessage('model', `*${bot.name} entra al chat.*`);
+                    }
+                } catch (e) {
+                    console.error("Error loading chat history:", e);
+                    els.chat.container.innerHTML = '';
+                    window.app.appendMessage('model', `*${bot.name} entra al chat.*`);
+                }
+            } else {
+                window.app.state.currentSessionId = "local";
+                window.app.state.currentSessionName = "Chat Local";
+                window.app.renderChatHeader();
+                els.chat.container.innerHTML = '';
+                window.app.appendMessage('model', `*${bot.name} entra al chat.*`);
+            }
+
+            els.inputs.message.disabled = false;
+            els.chat.sendBtn.disabled = false;
+            window.app.scrollToBottom();
+        };
+        
         const openVoiceChat = (bot) => {
             if(!bot && window.app.state.currentBot) bot = window.app.state.currentBot;
             localStorage.setItem('aiportal_current_bot', JSON.stringify({ name: bot.name, avatar: bot.avatar, systemPrompt: bot.systemPrompt + (bot.isDanMode ? ("\n" + danPromptContent) : ""), creatorId: bot.creatorId }));
@@ -624,7 +809,6 @@
                 document.body.removeChild(a);
                 window.URL.revokeObjectURL(blobUrl);
             } catch (e) {
-                console.error("Download failed", e);
                 window.open(url, '_blank'); 
             }
         };
@@ -640,6 +824,7 @@
                 await setDoc(userLikesRef, { ids: isLiked ? arrayRemove(botId) : arrayUnion(botId) }, { merge: true });
             } catch(e) { console.error(e); } finally { window.app.state.processingLikes.delete(botId); }
         };
+        
         const startCreation = () => {
             if(!els.createTitle) return; 
             window.app.state.editingBotId = null; els.createTitle.innerText = "Crear nuevo Personaje"; els.btnDeleteBot.classList.add('hidden');
@@ -651,6 +836,7 @@
             els.inputs.tag.value = 'Neutral'; els.inputs.isPrivate.checked = false; els.inputs.isPaid.checked = false; els.inputs.isDan.checked = false; els.inputs.price.value = 10;
             window.app.togglePriceInput(); window.app.navigate('create1');
         };
+        
         const editBot = (botId) => {
             const bot = window.app.state.bots.find(b => b.id === botId); if (!bot) return;
             window.app.state.editingBotId = botId; els.createTitle.innerText = "Editar Personaje"; els.btnDeleteBot.classList.remove('hidden');
@@ -692,21 +878,51 @@
                 window.app.navigate('home');
             } catch(e) { console.error(e); window.app.showModal({ title: "Error", body: "No se pudo guardar.", icon: "danger", buttons: [{ text: "OK" }] }); }
         };
+        
         const deleteBot = async () => {
             if(!window.app.state.editingBotId) return;
             window.app.showModal({ title: "Eliminar", body: "¿Seguro? No se puede deshacer.", icon: 'danger', buttons: [{ text: "Cancelar" }, { text: "Eliminar", class: "bg-red-600 text-white hover:bg-red-700", action: async () => { try { await deleteDoc(doc(db, 'botverse_public_bots', window.app.state.editingBotId)); window.app.navigate('home'); } catch(e) {} }}] });
         };
-        const askClearChat = () => { window.app.showModal({ title: "Reiniciar Chat", body: "¿Borrar historial?", icon: 'warning', buttons: [{ text: "Cancelar" }, { text: "Reiniciar", class: "bg-red-500 text-white hover:bg-red-600", action: () => window.app.clearChat() }] }); };
-        const clearChat = () => { window.app.state.chatHistory = []; els.chat.container.innerHTML = ''; window.app.state.isChatStopped = false; els.inputs.message.disabled = false; els.chat.sendBtn.disabled = false; els.chat.statusMsg.classList.add('hidden'); window.app.appendMessage('model', "*Memoria reiniciada.*"); };
+        
+        const askClearChat = () => { window.app.showModal({ title: "Reiniciar Chat", body: "¿Borrar historial de esta sesión?", icon: 'warning', buttons: [{ text: "Cancelar" }, { text: "Reiniciar", class: "bg-red-500 text-white hover:bg-red-600", action: () => window.app.clearChat() }] }); };
+        
+        const clearChat = async () => { 
+            window.app.state.chatHistory = []; 
+            els.chat.container.innerHTML = ''; 
+            window.app.state.isChatStopped = false; 
+            els.inputs.message.disabled = false; 
+            els.chat.sendBtn.disabled = false; 
+            els.chat.statusMsg.classList.add('hidden'); 
+            window.app.appendMessage('model', "*Memoria reiniciada.*"); 
+
+            if (window.app.state.user && window.app.state.currentSessionId && window.app.state.currentSessionId !== 'local') {
+                try {
+                    const sessionRef = doc(db, 'artifacts', appId, 'users', window.app.state.user.uid, 'chat_sessions', window.app.state.currentSessionId);
+                    await setDoc(sessionRef, { messages: [], updatedAt: Date.now() }, { merge: true });
+                } catch(e) { console.error("Error clearing chat history", e); }
+            }
+        };
         
         const appendMessage = (role, text) => {
             const div = document.createElement('div'); div.className = `flex ${role === 'user' ? 'justify-end' : 'justify-start bot-bubble'}`;
             const contentClass = role === 'user' ? "bg-indigo-600 text-white rounded-tr-sm" : "bg-gray-100 text-gray-800 rounded-tl-sm";
             div.innerHTML = `<div class="${contentClass} rounded-2xl px-5 py-3 shadow-sm prose prose-invert max-w-[85%] break-words">${marked.parse(text)}</div>`;
-            els.chat.container.appendChild(div); els.chat.container.scrollTop = els.chat.container.scrollHeight;
+            els.chat.container.appendChild(div); window.app.scrollToBottom();
         };
 
-        // --- MEMORY FUNCTIONS (Modified for timestamp) ---
+        const saveChatMessage = async (sessionId, role, content) => {
+            if (!window.app.state.user || !sessionId || sessionId === 'local') return;
+            try {
+                const sessionRef = doc(db, 'artifacts', appId, 'users', window.app.state.user.uid, 'chat_sessions', sessionId);
+                await setDoc(sessionRef, {
+                    messages: arrayUnion({ role, content, ts: Date.now() }),
+                    updatedAt: Date.now()
+                }, { merge: true });
+            } catch (e) {
+                console.error("Error saving chat message:", e);
+            }
+        };
+
         const getBotData = async (botId) => {
             try {
                 const docRef = doc(db, 'artifacts', appId, 'users', window.app.state.user.uid, 'memories', botId);
@@ -723,8 +939,7 @@
                 
                 const docRef = doc(db, 'artifacts', appId, 'users', window.app.state.user.uid, 'memories', botId);
                 await setDoc(docRef, { items: arrayUnion(finalContent) }, { merge: true });
-                console.log("Memory saved:", finalContent);
-            } catch(e) { console.error("Error saving memory", e); }
+            } catch(e) { }
         }
         
         const updateLastInteraction = async (botId) => {
@@ -733,13 +948,11 @@
                 await setDoc(docRef, { lastInteraction: Date.now() }, { merge: true });
              } catch(e) {}
         }
-        // ------------------------
 
         const sendMessage = async () => {
             if (window.app.state.isChatStopped) return;
             const text = els.inputs.message.value.trim(); if (!text && !window.app.state.attachedImage) return;
             
-            // --- UI DISPLAY (Clean text) ---
             let displayContent = text;
             if (window.app.state.attachedImage) {
                displayContent = `<img src="${window.app.state.attachedImage}" class="max-w-xs rounded-lg mb-2 block border border-white/20"> ${text}`;
@@ -747,9 +960,8 @@
             els.inputs.message.value = ''; window.app.appendMessage('user', displayContent); 
             
             els.chat.sendBtn.disabled = true;
-            els.inputs.message.disabled = true; // Disable input while generating
+            els.inputs.message.disabled = true; 
             
-            // --- API CONTENT (With Timestamp) ---
             const now = new Date();
             const timestamp = `[${now.getDate().toString().padStart(2,'0')}/${(now.getMonth()+1).toString().padStart(2,'0')}/${now.getFullYear()} ${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}]`;
             const textForBot = `${timestamp} ${text}`;
@@ -766,17 +978,17 @@
             }
             window.app.clearImageAttachment();
             
+            window.app.saveChatMessage(window.app.state.currentSessionId, 'user', apiContent);
+            
             const placeholderDiv = document.createElement('div'); placeholderDiv.className = 'flex justify-start bot-bubble';
             placeholderDiv.innerHTML = `<div class="bg-gray-100 text-gray-800 rounded-2xl rounded-tl-sm px-5 py-3 shadow-sm prose max-w-[85%]"><span class="typing-dot inline-block"></span></div>`;
-            els.chat.container.appendChild(placeholderDiv); els.chat.container.scrollTop = els.chat.container.scrollHeight;
+            els.chat.container.appendChild(placeholderDiv); window.app.scrollToBottom();
             const contentEl = placeholderDiv.querySelector('.prose');
             let fullResponse = ""; let success = false; let resp = null;
             
-            // --- TIME AND MEMORY CONTEXT ---
             const botData = await getBotData(window.app.state.currentBot.id);
             const memories = botData.items || [];
             const lastInteraction = botData.lastInteraction;
-            // Time context for system prompt (current general time)
             const generalNow = new Date();
             let timeContext = `FECHA Y HORA ACTUAL: ${generalNow.toLocaleString('es-ES')}. `;
             
@@ -805,7 +1017,6 @@
             if (window.app.state.currentBot.isDanMode) currentInstructions += "\n\n" + danPromptContent;
             
             let messagesPayload = [ { role: "system", content: currentInstructions }, ...window.app.state.chatHistory ];
-            // ---------------------
 
             const delay = ms => new Promise(res => setTimeout(res, ms));
             for(let i=0; i<3; i++) {
@@ -833,14 +1044,14 @@
                         });
                         if(resp.status === 429) continue;
                         if(resp.ok) { success = true; break; }
-                    } catch(e) { console.error("Fallback attempt failed", e); }
+                    } catch(e) {}
                 }
             }
             if (!success || !resp || !resp.ok) {
                 contentEl.innerHTML = "<span class='text-red-500'>Error de conexión (429/Network). Intenta más tarde.</span>";
                 if (!window.app.state.isChatStopped) { 
                     els.chat.sendBtn.disabled = false; 
-                    els.inputs.message.disabled = false; // Re-enable input on error
+                    els.inputs.message.disabled = false; 
                     els.inputs.message.focus(); 
                 }
                 return;
@@ -856,9 +1067,8 @@
                             try {
                                 const json = JSON.parse(str);
                                 if (json.choices?.[0]?.delta?.content) {
-                                    const chunk = json.choices[0].delta.content; fullResponse += chunk; 
+                                    const chunk = json.choices[0].delta.content; fullResponse += chunk;
                                     
-                                    // 1. Detección robusta de imágenes
                                     const imgRegex = /\[IMG:(.*?)\]/g;
                                     let match;
                                     while ((match = imgRegex.exec(fullResponse)) !== null) {
@@ -871,10 +1081,7 @@
                                         }
                                     }
 
-                                    // 3. Pre-procesamiento: Reemplazar tags con placeholders o vacío
                                     let tempMarkdown = fullResponse;
-                                    
-                                    // Limpiar MEMOs de la vista
                                     tempMarkdown = tempMarkdown.replace(/\[MEMO:(.*?)\]/g, "");
 
                                     for (const [tag, data] of Object.entries(window.app.state.generatedImages)) {
@@ -882,30 +1089,28 @@
                                         tempMarkdown = tempMarkdown.split(tag).join(safePlaceholder);
                                     }
 
-                                    // 4. Renderizar Markdown
                                     let renderedHtml = marked.parse(tempMarkdown);
 
-                                    // 5. Post-procesamiento: Inyectar HTML de las imágenes
                                     for (const [tag, data] of Object.entries(window.app.state.generatedImages)) {
                                         const safePlaceholder = `___IMG_GEN_ID_${data.id}___`;
                                         let widgetHtml = "";
                                         
-                                        if (data.status === 'done') {
-                                             widgetHtml = `<div class="my-2 w-72 aspect-square relative group">
+                                        if (data.status === 'done') { 
+                                            widgetHtml = `<div class="my-2 w-72 aspect-square relative group">
                                                         <img src="${data.url}" class="rounded-lg w-full h-full object-cover no-drag border border-gray-200" oncontextmenu="return false;">
                                                         <button onclick="window.app.downloadImage('${data.url}')" class="absolute top-2 right-2 bg-black/50 hover:bg-black/70 text-white p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
                                                             <i class="fa-solid fa-download"></i>
                                                         </button>
                                                     </div>`;
-                                        } else {
-                                             widgetHtml = `<div id="${data.id}" class="my-2 rounded-lg overflow-hidden w-72 aspect-square shimmer relative flex items-center justify-center border border-gray-200"><span class="text-gray-400 text-sm font-medium animate-pulse">Generando imagen...</span></div>`;
+                                        } else { 
+                                            widgetHtml = `<div id="${data.id}" class="my-2 rounded-lg overflow-hidden w-72 aspect-square shimmer relative flex items-center justify-center border border-gray-200"><span class="text-gray-400 text-sm font-medium animate-pulse">Generando imagen...</span></div>`;
                                         }
                                         renderedHtml = renderedHtml.split(safePlaceholder).join(widgetHtml);
                                         renderedHtml = renderedHtml.split(`<p>${safePlaceholder}</p>`).join(widgetHtml);
                                     }
 
                                     contentEl.innerHTML = renderedHtml; 
-                                    els.chat.container.scrollTop = els.chat.container.scrollHeight;
+                                    window.app.scrollToBottom();
                                     if (chunk.match(/\s/)) els.userCoins.innerText = parseInt(els.userCoins.innerText) + 1;
                                     if (fullResponse.includes('/stop')) window.app.stopChat();
                                 }
@@ -914,7 +1119,6 @@
                     }
                 }
                 
-                // --- SAVE MEMORIES AFTER STREAM ---
                 const finalMemoRegex = /\[MEMO:(.*?)\]/g;
                 let finalMatch;
                 while ((finalMatch = finalMemoRegex.exec(fullResponse)) !== null) {
@@ -922,18 +1126,18 @@
                     await saveBotMemory(window.app.state.currentBot.id, contentToSave);
                 }
                 
-                // --- UPDATE INTERACTION TIME ---
                 await updateLastInteraction(window.app.state.currentBot.id);
-                // ----------------------------------
 
                 window.app.state.chatHistory.push({ role: "assistant", content: fullResponse });
+                
+                window.app.saveChatMessage(window.app.state.currentSessionId, 'assistant', fullResponse);
                 
                 const words = fullResponse.split(/\s+/).filter(w => w.length > 0);
                 if (words.length > 0) {
                     const lengths = words.map(w => w.length); const counts = {}; lengths.forEach(l => counts[l] = (counts[l] || 0) + 1);
                     if (Math.max(...Object.values(counts)) / words.length <= 0.9) {
                         const rawReward = words.length; 
-                        const reward = Math.min(rawReward, 50); // LIMIT MAX COINS TO 50
+                        const reward = Math.min(rawReward, 50); 
                         const userStatsRef = doc(db, 'artifacts', appId, 'users', window.app.state.user.uid, 'data', 'stats');
                         await updateDoc(userStatsRef, { coins: increment(reward) });
                         const publicUserRef = doc(db, 'artifacts', appId, 'public', 'data', 'users_stats', window.app.state.user.uid);
@@ -944,7 +1148,7 @@
             finally { 
                 if (!window.app.state.isChatStopped) { 
                     els.chat.sendBtn.disabled = false; 
-                    els.inputs.message.disabled = false; // Re-enable input
+                    els.inputs.message.disabled = false; 
                     els.inputs.message.focus(); 
                 } 
             }
@@ -952,8 +1156,8 @@
 
         const generateImage = (prompt, imgId, fullTag) => {
             const encodedPrompt = encodeURIComponent(prompt);
-            const seed = Math.floor(Math.random() * 1000);
-            const url = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1000&height=1000&enhance=true&seed=${seed}&nologo=true`;
+            const seed = (prompt.length * 42) % 1000;
+            const url = `https://freeai.logise1123.workers.dev/image/${encodedPrompt}?raw=true&nologo=true&seed=${seed}`;
             const img = new Image();
             img.src = url;
             img.onload = () => {
@@ -963,12 +1167,14 @@
         };
 
         const stopChat = () => { window.app.state.isChatStopped = true; els.inputs.message.disabled = true; els.chat.sendBtn.disabled = true; els.chat.statusMsg.innerText = "Chat finalizado por el bot."; els.chat.statusMsg.classList.remove('hidden'); };
+        
         const switchLeaderboardTab = (tab) => {
             window.app.state.currentLeaderboardTab = tab;
             if (tab === 'bots') { els.tabBots.classList.add('tab-active', 'text-indigo-600', 'border-indigo-600'); els.tabBots.classList.remove('text-gray-500', 'border-transparent'); els.tabUsers.classList.remove('tab-active', 'text-indigo-600', 'border-indigo-600'); els.tabUsers.classList.add('text-gray-500', 'border-transparent'); } 
             else { els.tabUsers.classList.add('tab-active', 'text-indigo-600', 'border-indigo-600'); els.tabUsers.classList.remove('text-gray-500', 'border-transparent'); els.tabBots.classList.remove('tab-active', 'text-indigo-600', 'border-indigo-600'); els.tabBots.classList.add('text-gray-500', 'border-transparent'); }
             window.app.showLeaderboard(true);
         };
+        
         const showLeaderboard = async (isReload = false) => {
             if(!isReload) window.app.navigate('leaderboard');
             const list = els.leaderboardList; list.innerHTML = '<div class="text-center py-4"><i class="fa-solid fa-circle-notch fa-spin text-indigo-500"></i> Cargando...</div>';
@@ -990,15 +1196,17 @@
                         list.innerHTML += `<div class="flex items-center justify-between bg-gray-50 p-4 rounded-xl border border-gray-100"><div class="flex items-center gap-4"><span class="text-xl font-bold w-8 text-center">${medal}</span><div class="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center text-amber-600"><i class="fa-solid fa-user"></i></div><h4 class="font-bold text-gray-900">${user.username}</h4></div><div class="font-bold text-amber-500 flex items-center gap-2"><i class="fa-solid fa-coins"></i> ${user.coins || 0}</div></div>`;
                     });
                 }
-            } catch(e) { console.error(e); list.innerHTML = '<p class="text-center text-red-400">Error al cargar clasificación. (Requiere índices)</p>'; }
+            } catch(e) { console.error(e); list.innerHTML = '<p class="text-center text-red-400">Error al cargar clasificación.</p>'; }
         };
+        
         const backToDetails = () => window.app.navigate('create1');
 
         window.app = {
             ...window.app,
             init, showModal, hideModal, showAuth, toggleAuthMode, handleAuth, logout, navigate, togglePriceInput, loadBots, handleSearch, filterBots, renderBots,
-            handleBotClick, showPaymentModal, showChatModeSelection, processPayment, openChat, openVoiceChat, likeBot, startCreation, editBot, goToPromptEditor, publishBot, deleteBot, askClearChat, clearChat, appendMessage, sendMessage, stopChat, switchLeaderboardTab, showLeaderboard, backToDetails,
-            handleImageUpload, clearImageAttachment, downloadImage, generateImage, handleAvatarUpload
+            handleBotClick, showPaymentModal, showChatModeSelection, processPayment, toggleChatSidebar, loadChatSidebar, openChat, openVoiceChat, likeBot, startCreation, editBot, goToPromptEditor, publishBot, deleteBot, askClearChat, clearChat, appendMessage, saveChatMessage, sendMessage, stopChat, switchLeaderboardTab, showLeaderboard, backToDetails,
+            handleImageUpload, clearImageAttachment, downloadImage, generateImage, handleAvatarUpload,
+            renderChatHeader, renameCurrentSession, createNewSessionForBot, scrollToBottom
         };
         
         window.app.constants = {
