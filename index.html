@@ -551,6 +551,10 @@
             window.app.showModal({ title: "Bot de Pago", body: `Este chat cuesta ${bot.price} monedas. ¿Quieres entrar?`, icon: 'money', buttons: [{ text: "Cancelar" }, { text: `Pagar ${bot.price} 🪙`, class: "bg-amber-500 text-white hover:bg-amber-600", action: () => window.app.processPayment(bot) }] });
         };
         
+        const showChatModeSelection = (bot) => {
+            window.app.showModal({ title: `Chatear con ${bot.name}`, body: "Elige modo:", icon: 'chat', buttons: [{ text: "Texto Normal ⌨️", class: "bg-white border-gray-300 text-gray-700 hover:bg-gray-50", action: () => window.app.openChat(bot) }, { text: "Chat de Voz 🎙️", class: "bg-indigo-600 text-white hover:bg-indigo-700", action: () => window.app.openVoiceChat(bot) }] });
+        };
+
         const processPayment = async (bot) => {
             if (window.app.state.coins < bot.price) return window.app.showModal({ title: "Saldo Insuficiente", body: "No tienes suficientes monedas.", icon: 'warning', buttons: [{ text: "OK" }] });
             try {
