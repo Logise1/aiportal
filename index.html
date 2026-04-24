@@ -6,6 +6,7 @@
     <title>AiPortal</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
@@ -274,6 +275,7 @@
                         <div id="chat-header-info" class="flex items-center gap-3 min-w-0"></div>
                     </div>
                     <div class="flex items-center gap-2 shrink-0">
+                        <button onclick="app.toggleChatLock()" id="btn-lock-chat" class="text-gray-400 hover:text-amber-500 w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-50 transition-all" title="Bloquear/Desbloquear chat"><i class="fa-solid fa-lock-open"></i></button>
                         <button onclick="app.createNewSessionForBot(window.app.state.currentBot)" class="text-gray-400 hover:text-indigo-600 w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-50 transition-all" title="Nuevo chat con este personaje"><i class="fa-solid fa-plus"></i></button>
                         <button onclick="app.openVoiceChat(window.app.state.currentBot)" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-600 px-3 py-2 rounded-full text-sm font-bold flex items-center gap-2 transition-colors border border-indigo-200" title="Pasar a chat de voz">
                             <i class="fa-solid fa-microphone"></i> <span class="hidden sm:inline">Voz</span>
@@ -720,6 +722,50 @@
                         activeSession = { id: newSessionRef.id, ...newSessionData };
                     }
                     
+                    if (activeSession.isEncrypted) {
+                        const pwd = prompt("Este chat está bloqueado. Introduce la contraseña:");
+                        if (!pwd) {
+                            els.chat.container.innerHTML = '<div class="text-center p-4 text-red-500">Acceso denegado. Contraseña requerida.</div>';
+                            return;
+                        }
+                        window.app.state.sessionPassword = pwd;
+                        document.getElementById('btn-lock-chat').innerHTML = '<i class="fa-solid fa-lock"></i>';
+                        document.getElementById('btn-lock-chat').classList.add('text-amber-500');
+                        document.getElementById('btn-lock-chat').classList.remove('text-gray-400');
+                    } else {
+                        window.app.state.sessionPassword = null;
+                        document.getElementById('btn-lock-chat').innerHTML = '<i class="fa-solid fa-lock-open"></i>';
+                        document.getElementById('btn-lock-chat').classList.remove('text-amber-500');
+                        document.getElementById('btn-lock-chat').classList.add('text-gray-400');
+                    }
+
+                    let failedDecryption = false;
+                    let decryptedMessages = [];
+                    if (activeSession.messages) {
+                        for (let m of activeSession.messages) {
+                            let msgObj = { ...m };
+                            if (msgObj.enc || activeSession.isEncrypted) {
+                                if (!window.app.state.sessionPassword) { failedDecryption = true; break; }
+                                try {
+                                    const bytes = CryptoJS.AES.decrypt(msgObj.content, window.app.state.sessionPassword);
+                                    const decStr = bytes.toString(CryptoJS.enc.Utf8);
+                                    if (!decStr) throw new Error("bad pwd");
+                                    msgObj.content = JSON.parse(decStr);
+                                } catch (e) {
+                                    failedDecryption = true;
+                                    break;
+                                }
+                            }
+                            decryptedMessages.push(msgObj);
+                        }
+                    }
+
+                    if (failedDecryption) {
+                         els.chat.container.innerHTML = '<div class="text-center p-4 text-red-500">Contraseña incorrecta. Acceso denegado.</div>';
+                         window.app.state.sessionPassword = null;
+                         return;
+                    }
+
                     window.app.state.currentSessionId = activeSession.id;
                     window.app.state.currentSessionName = activeSession.name;
                     window.app.renderChatHeader();
@@ -727,10 +773,10 @@
                     
                     els.chat.container.innerHTML = '';
 
-                    if (activeSession.messages && activeSession.messages.length > 0) {
-                        window.app.state.chatHistory = activeSession.messages.map(m => ({ role: m.role, content: m.content }));
+                    if (decryptedMessages && decryptedMessages.length > 0) {
+                        window.app.state.chatHistory = decryptedMessages.map(m => ({ role: m.role, content: m.content }));
                         
-                        activeSession.messages.forEach(msg => {
+                        decryptedMessages.forEach(msg => {
                             if (msg.role === 'user') {
                                 let displayHtml = "";
                                 if (Array.isArray(msg.content)) {
@@ -953,9 +999,15 @@
         const saveChatMessage = async (sessionId, role, content) => {
             if (!window.app.state.user || !sessionId || sessionId === 'local') return;
             try {
+                let savedContent = content;
+                let isEncryptedMsg = false;
+                if (window.app.state.sessionPassword) {
+                    savedContent = CryptoJS.AES.encrypt(JSON.stringify(content), window.app.state.sessionPassword).toString();
+                    isEncryptedMsg = true;
+                }
                 const sessionRef = doc(db, 'artifacts', appId, 'users', window.app.state.user.uid, 'chat_sessions', sessionId);
                 await setDoc(sessionRef, {
-                    messages: arrayUnion({ role, content, ts: Date.now() }),
+                    messages: arrayUnion({ role, content: savedContent, ts: Date.now(), enc: isEncryptedMsg }),
                     updatedAt: Date.now()
                 }, { merge: true });
             } catch (e) {
@@ -1239,11 +1291,70 @@
             } catch(e) { console.error(e); list.innerHTML = '<p class="text-center text-red-400">Error al cargar clasificación.</p>'; }
         };
         
+        const toggleChatLock = async () => {
+            if (!window.app.state.currentSessionId || window.app.state.currentSessionId === 'local') return;
+            const sessionRef = doc(db, 'artifacts', appId, 'users', window.app.state.user.uid, 'chat_sessions', window.app.state.currentSessionId);
+            try {
+                const snap = await getDoc(sessionRef);
+                if (!snap.exists()) return;
+                const sessionData = snap.data();
+
+                if (sessionData.isEncrypted) {
+                    const conf = confirm("El chat ya está bloqueado. ¿Deseas quitar la contraseña?");
+                    if (conf) {
+                        let decryptedMsgs = [];
+                        for (let m of sessionData.messages || []) {
+                            if (m.enc) {
+                                try {
+                                    const bytes = CryptoJS.AES.decrypt(m.content, window.app.state.sessionPassword);
+                                    const decStr = bytes.toString(CryptoJS.enc.Utf8);
+                                    if(!decStr) throw new Error("bad pwd");
+                                    m.content = JSON.parse(decStr);
+                                    m.enc = false;
+                                } catch(e) {
+                                    alert("Error al desencriptar. Asegúrate de haber entrado con la contraseña correcta.");
+                                    return;
+                                }
+                            }
+                            decryptedMsgs.push(m);
+                        }
+                        await updateDoc(sessionRef, { isEncrypted: false, messages: decryptedMsgs });
+                        window.app.state.sessionPassword = null;
+                        document.getElementById('btn-lock-chat').innerHTML = '<i class="fa-solid fa-lock-open"></i>';
+                        document.getElementById('btn-lock-chat').classList.remove('text-amber-500');
+                        document.getElementById('btn-lock-chat').classList.add('text-gray-400');
+                        alert("Contraseña quitada.");
+                    }
+                } else {
+                    const pwd = prompt("Introduce una contraseña para encriptar y bloquear este chat:");
+                    if (!pwd) return;
+                    let encryptedMsgs = [];
+                    for (let m of sessionData.messages || []) {
+                        if (!m.enc) {
+                            m.content = CryptoJS.AES.encrypt(JSON.stringify(m.content), pwd).toString();
+                            m.enc = true;
+                        }
+                        encryptedMsgs.push(m);
+                    }
+                    await updateDoc(sessionRef, { isEncrypted: true, messages: encryptedMsgs });
+                    window.app.state.sessionPassword = pwd;
+                    document.getElementById('btn-lock-chat').innerHTML = '<i class="fa-solid fa-lock"></i>';
+                    document.getElementById('btn-lock-chat').classList.add('text-amber-500');
+                    document.getElementById('btn-lock-chat').classList.remove('text-gray-400');
+                    alert("Chat bloqueado y mensajes encriptados correctamente.");
+                }
+            } catch(e) {
+                console.error(e);
+                alert("Error al cambiar estado de seguridad del chat.");
+            }
+        };
+
         const backToDetails = () => window.app.navigate('create1');
 
         window.app = {
             ...window.app,
             init, showModal, hideModal, showAuth, toggleAuthMode, handleAuth, logout, navigate, togglePriceInput, loadBots, handleSearch, filterBots, renderBots,
+            toggleChatLock,
             handleBotClick, showPaymentModal, showChatModeSelection, processPayment, toggleChatSidebar, loadChatSidebar, openChat, openVoiceChat, likeBot, startCreation, editBot, goToPromptEditor, publishBot, deleteBot, askClearChat, clearChat, appendMessage, saveChatMessage, sendMessage, stopChat, switchLeaderboardTab, showLeaderboard, backToDetails,
             handleImageUpload, clearImageAttachment, downloadImage, generateImage, handleAvatarUpload,
             renderChatHeader, renameCurrentSession, createNewSessionForBot, scrollToBottom, forceScrollToBottom
