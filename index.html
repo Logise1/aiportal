@@ -284,6 +284,11 @@
                 
                 <div id="chat-messages" class="flex-1 overflow-y-auto p-4 space-y-6 scroll-smooth bg-white"></div>
                 
+                <!-- Botón flotante de scroll -->
+                <button id="scroll-to-bottom-btn" onclick="app.forceScrollToBottom()" class="absolute bottom-24 right-6 bg-indigo-500/90 backdrop-blur text-white w-10 h-10 rounded-full shadow-lg flex items-center justify-center hidden z-40 hover:bg-indigo-600 transition-all duration-300 opacity-0 translate-y-4">
+                    <i class="fa-solid fa-arrow-down"></i>
+                </button>
+
                 <!-- Image Preview Area -->
                 <div id="img-preview-container" class="px-4 pb-2 bg-white hidden flex-shrink-0">
                     <div class="relative inline-block">
@@ -353,7 +358,8 @@
             chatHistory: [], likedBotIds: [], currentFilter: 'all', searchQuery: '', isChatStopped: false, processingLikes: new Set(), currentLeaderboardTab: 'bots',
             attachedImage: null, generatedImages: {},
             clickCounts: {},
-            currentSessionId: null, currentSessionName: "" 
+            currentSessionId: null, currentSessionName: "",
+            userScrolledUp: false
         };
 
         let els = {};
@@ -371,7 +377,7 @@
                 inputs: { name: document.getElementById('input-name'), desc: document.getElementById('input-desc'), tag: document.getElementById('input-tag'), system: document.getElementById('input-system'), isPrivate: document.getElementById('input-private'), isPaid: document.getElementById('input-paid'), isDan: document.getElementById('input-dan'), price: document.getElementById('input-price'), message: document.getElementById('message-input') },
                 priceContainer: document.getElementById('price-container'), 
                 avatarPreview: document.getElementById('avatar-preview'), avatarUploadStatus: document.getElementById('avatar-upload-status'),
-                chat: { container: document.getElementById('chat-messages'), header: document.getElementById('chat-header-info'), sendBtn: document.getElementById('send-btn'), statusMsg: document.getElementById('chat-status-msg'), imgPreview: document.getElementById('img-preview-container'), imgPreviewSrc: document.getElementById('img-preview'), sidebar: document.getElementById('chat-sidebar'), sidebarList: document.getElementById('chat-sidebar-list'), backdrop: document.getElementById('chat-sidebar-backdrop') },
+                chat: { container: document.getElementById('chat-messages'), header: document.getElementById('chat-header-info'), sendBtn: document.getElementById('send-btn'), statusMsg: document.getElementById('chat-status-msg'), imgPreview: document.getElementById('img-preview-container'), imgPreviewSrc: document.getElementById('img-preview'), sidebar: document.getElementById('chat-sidebar'), sidebarList: document.getElementById('chat-sidebar-list'), backdrop: document.getElementById('chat-sidebar-backdrop'), scrollBtn: document.getElementById('scroll-to-bottom-btn') },
                 leaderboardList: document.getElementById('leaderboard-list'), tabBots: document.getElementById('tab-bots'), tabUsers: document.getElementById('tab-users'),
                 modal: { overlay: document.getElementById('global-modal'), content: document.getElementById('modal-content'), title: document.getElementById('modal-title'), msg: document.getElementById('modal-msg'), actions: document.getElementById('modal-actions'), icon: document.getElementById('modal-icon') }
             };
@@ -413,6 +419,25 @@
             });
             if(els.inputs.message) els.inputs.message.addEventListener('keypress', (e) => { if(e.key === 'Enter') window.app.sendMessage(); });
             if(els.auth.pass) els.auth.pass.addEventListener('keypress', (e) => { if(e.key === 'Enter') window.app.handleAuth(); });
+            
+            // Lógica para detectar el scroll en el chat
+            if(els.chat.container) {
+                els.chat.container.addEventListener('scroll', () => {
+                    const threshold = 100; // Píxeles de margen para considerar que está "abajo"
+                    const position = els.chat.container.scrollTop + els.chat.container.clientHeight;
+                    const height = els.chat.container.scrollHeight;
+                    if (height - position > threshold) {
+                        window.app.state.userScrolledUp = true;
+                        els.chat.scrollBtn.classList.remove('hidden');
+                        setTimeout(() => { els.chat.scrollBtn.classList.remove('opacity-0', 'translate-y-4'); els.chat.scrollBtn.classList.add('opacity-100', 'translate-y-0'); }, 10);
+                    } else {
+                        window.app.state.userScrolledUp = false;
+                        els.chat.scrollBtn.classList.remove('opacity-100', 'translate-y-0');
+                        els.chat.scrollBtn.classList.add('opacity-0', 'translate-y-4');
+                        setTimeout(() => { if(!window.app.state.userScrolledUp) els.chat.scrollBtn.classList.add('hidden'); }, 300);
+                    }
+                });
+            }
         };
 
         const showModal = (config) => {
@@ -461,12 +486,18 @@
 
         const togglePriceInput = () => { if (els.inputs.isPaid.checked) els.priceContainer.classList.remove('hidden'); else els.priceContainer.classList.add('hidden'); };
         
-        const scrollToBottom = () => {
+        const scrollToBottom = (force = false) => {
+            if (window.app.state.userScrolledUp && !force) return;
             setTimeout(() => {
                 if(els.chat.container) {
                     els.chat.container.scrollTop = els.chat.container.scrollHeight;
                 }
             }, 150); // delay to let images render slightly
+        };
+
+        const forceScrollToBottom = () => {
+            window.app.state.userScrolledUp = false;
+            window.app.scrollToBottom(true);
         };
 
         const loadBots = () => {
@@ -1210,7 +1241,7 @@
             init, showModal, hideModal, showAuth, toggleAuthMode, handleAuth, logout, navigate, togglePriceInput, loadBots, handleSearch, filterBots, renderBots,
             handleBotClick, showPaymentModal, showChatModeSelection, processPayment, toggleChatSidebar, loadChatSidebar, openChat, openVoiceChat, likeBot, startCreation, editBot, goToPromptEditor, publishBot, deleteBot, askClearChat, clearChat, appendMessage, saveChatMessage, sendMessage, stopChat, switchLeaderboardTab, showLeaderboard, backToDetails,
             handleImageUpload, clearImageAttachment, downloadImage, generateImage, handleAvatarUpload,
-            renderChatHeader, renameCurrentSession, createNewSessionForBot, scrollToBottom
+            renderChatHeader, renameCurrentSession, createNewSessionForBot, scrollToBottom, forceScrollToBottom
         };
         
         window.app.constants = {
