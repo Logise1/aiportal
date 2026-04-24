@@ -486,13 +486,16 @@
 
         const togglePriceInput = () => { if (els.inputs.isPaid.checked) els.priceContainer.classList.remove('hidden'); else els.priceContainer.classList.add('hidden'); };
         
+        let scrollTimeout;
         const scrollToBottom = (force = false) => {
             if (window.app.state.userScrolledUp && !force) return;
-            setTimeout(() => {
+            clearTimeout(scrollTimeout);
+            scrollTimeout = setTimeout(() => {
+                if (window.app.state.userScrolledUp && !force) return;
                 if(els.chat.container) {
                     els.chat.container.scrollTop = els.chat.container.scrollHeight;
                 }
-            }, 150); // delay to let images render slightly
+            }, 100); // delay to let images render slightly
         };
 
         const forceScrollToBottom = () => {
@@ -684,6 +687,7 @@
             window.app.state.chatHistory = []; 
             window.app.state.isChatStopped = false;
             window.app.state.attachedImage = null; 
+            window.app.state.userScrolledUp = false;
             window.app.clearImageAttachment(); 
             
             els.inputs.message.disabled = true; 
@@ -770,7 +774,7 @@
 
             els.inputs.message.disabled = false;
             els.chat.sendBtn.disabled = false;
-            window.app.scrollToBottom();
+            window.app.scrollToBottom(true);
         };
         
         const openVoiceChat = (bot) => {
@@ -925,6 +929,7 @@
             window.app.state.chatHistory = []; 
             els.chat.container.innerHTML = ''; 
             window.app.state.isChatStopped = false; 
+            window.app.state.userScrolledUp = false;
             els.inputs.message.disabled = false; 
             els.chat.sendBtn.disabled = false; 
             els.chat.statusMsg.classList.add('hidden'); 
