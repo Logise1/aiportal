@@ -301,7 +301,8 @@
                         class="relative z-10 bg-white/10 hover:bg-white/20 border border-white/20 text-white px-6 py-4 rounded-xl font-bold transition-all flex items-center gap-3 w-full md:w-auto justify-center backdrop-blur-sm">
                         <div
                             class="w-10 h-10 bg-amber-400 rounded-full flex items-center justify-center text-amber-900 shadow-lg">
-                            <i class="fa-solid fa-trophy text-lg"></i></div>
+                            <i class="fa-solid fa-trophy text-lg"></i>
+                        </div>
                         <div class="text-left"><span class="block text-xs text-indigo-100 font-normal">Ranking
                                 Global</span><span class="block text-sm">Ver Clasificación</span></div>
                     </button>
@@ -548,18 +549,19 @@
                 <div id="chat-input-container" class="p-4 bg-white border-t border-gray-200 flex-shrink-0 pb-safe">
                     <div class="max-w-4xl mx-auto relative flex gap-2 items-end">
                         <button onclick="document.getElementById('pixtral-image-input').click()"
-                            class="bg-gray-100 hover:bg-gray-200 text-indigo-500 p-3 rounded-xl transition-colors h-[50px] w-[50px] flex items-center justify-center shrink-0" title="Foto / Analizar Imagen">
+                            class="bg-gray-100 hover:bg-gray-200 text-indigo-500 p-3 rounded-xl transition-colors h-[50px] w-[50px] flex items-center justify-center shrink-0"
+                            title="Foto / Analizar Imagen">
                             <i class="fa-solid fa-camera text-lg"></i>
                         </button>
                         <input type="file" id="pixtral-image-input" accept="image/*" class="hidden"
                             onchange="app.handlePixtralImageUpload(this)">
 
                         <button onclick="document.getElementById('file-input').click()"
-                            class="bg-gray-100 hover:bg-gray-200 text-gray-500 p-3 rounded-xl transition-colors h-[50px] w-[50px] flex items-center justify-center shrink-0" title="Subir Archivo">
+                            class="bg-gray-100 hover:bg-gray-200 text-gray-500 p-3 rounded-xl transition-colors h-[50px] w-[50px] flex items-center justify-center shrink-0"
+                            title="Subir Archivo">
                             <i class="fa-solid fa-paperclip text-lg"></i>
                         </button>
-                        <input type="file" id="file-input" class="hidden"
-                            onchange="app.handleFileUpload(this)">
+                        <input type="file" id="file-input" class="hidden" onchange="app.handleFileUpload(this)">
 
                         <input type="text" id="message-input"
                             class="w-full bg-gray-50 border border-gray-300 rounded-xl px-5 py-3 text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-50 disabled:bg-gray-100 h-[50px]"
@@ -1162,21 +1164,21 @@
         const handlePixtralImageUpload = async (input) => {
             const file = input.files[0];
             if (!file) return;
-            
+
             const prevMsg = els.inputs.message.value;
             els.inputs.message.value = "Analizando imagen...";
             els.inputs.message.disabled = true;
-            
+
             const reader = new FileReader();
             reader.onload = async (e) => {
                 const base64Image = e.target.result;
-                
+
                 try {
                     const resp = await fetch("https://api.mistral.ai/v1/chat/completions", {
-                        method: 'POST', 
+                        method: 'POST',
                         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${mistralApiKey}` },
-                        body: JSON.stringify({ 
-                            model: "pixtral-12b-2409", 
+                        body: JSON.stringify({
+                            model: "pixtral-12b-2409",
                             messages: [{
                                 role: "user",
                                 content: [
@@ -1189,11 +1191,11 @@
                     });
                     const json = await resp.json();
                     const description = json.choices[0].message.content;
-                    
+
                     els.inputs.message.value = prevMsg + (prevMsg ? "\n\n" : "") + `[Imagen adjunta: ${description}]`;
                     els.inputs.message.disabled = false;
                     els.inputs.message.focus();
-                    
+
                     window.app.state.attachedImage = base64Image;
                     els.chat.imgPreviewSrc.src = base64Image;
                     els.chat.imgPreview.classList.remove('hidden');
@@ -1211,11 +1213,11 @@
         const handleFileUpload = async (input) => {
             const file = input.files[0];
             if (!file) return;
-            
+
             const prevMsg = els.inputs.message.value;
             els.inputs.message.value = "Subiendo archivo...";
             els.inputs.message.disabled = true;
-            
+
             const formData = new FormData();
             formData.append('file', file);
             try {
@@ -1223,7 +1225,7 @@
                 if (!response.ok) throw new Error('Upload failed');
                 const result = await response.json();
                 const fullUrl = YYFUrl + result.fileUrl;
-                
+
                 els.inputs.message.value = prevMsg + (prevMsg ? " " : "") + fullUrl;
                 els.inputs.message.disabled = false;
                 els.inputs.message.focus();
@@ -1509,8 +1511,27 @@
             let currentInstructions = window.app.constants.PRE_SYSTEM_PROMPT + "\n" + timeContext + memoryText + "\n[PERSONALIDAD]: " + window.app.state.currentBot.systemPrompt;
             if (window.app.state.currentBot.isDanMode) currentInstructions += "\n\n" + danPromptContent;
 
-            let messagesPayload = [{ role: "system", content: currentInstructions }, ...window.app.state.chatHistory];
+            // Lógica de truncado de contexto por caracteres
+            let maxChars = 125000;
+            let systemChars = currentInstructions.length;
+            let availableChars = maxChars - systemChars;
 
+            let truncatedHistory = [];
+            let currentChars = 0;
+
+            // Recorremos de más nuevo a más viejo
+            for (let i = window.app.state.chatHistory.length - 1; i >= 0; i--) {
+                let msg = window.app.state.chatHistory[i];
+                let msgLen = typeof msg.content === 'string' ? msg.content.length : JSON.stringify(msg.content).length;
+
+                if (currentChars + msgLen > availableChars && truncatedHistory.length > 0) {
+                    break; // Si nos pasamos del límite, cortamos el historial por arriba
+                }
+                truncatedHistory.unshift(msg);
+                currentChars += msgLen;
+            }
+
+            let messagesPayload = [{ role: "system", content: currentInstructions }, ...truncatedHistory];
             const delay = ms => new Promise(res => setTimeout(res, ms));
             for (let i = 0; i < 3; i++) {
                 try {
