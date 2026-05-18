@@ -520,6 +520,9 @@
                             title="Pasar a chat de voz">
                             <i class="fa-solid fa-microphone"></i> <span class="hidden sm:inline">Voz</span>
                         </button>
+                        <button onclick="app.openMemoriesModal()"
+                            class="text-gray-400 hover:text-purple-500 w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-50 transition-all"
+                            title="Memorias del personaje"><i class="fa-solid fa-brain"></i></button>
                         <button onclick="app.askClearChat()"
                             class="text-gray-400 hover:text-red-500 w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-50 transition-all"
                             title="Borrar historial"><i class="fa-solid fa-trash-can"></i></button>
@@ -580,6 +583,24 @@
 
     </main>
 
+    <!-- MEMORIES VIEW -->
+    <div id="view-memories" class="fixed inset-0 flex items-center justify-center bg-gray-900/40 backdrop-blur-sm z-[70] hidden">
+        <div class="bg-white p-6 rounded-2xl w-full max-w-lg shadow-2xl relative border border-gray-100 flex flex-col max-h-[85vh] mx-4 fade-in">
+            <button onclick="app.closeMemoriesModal()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-700 w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100"><i class="fa-solid fa-xmark text-lg"></i></button>
+            <div class="flex items-center gap-3 mb-4">
+                <div class="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center text-purple-600">
+                    <i class="fa-solid fa-brain text-lg"></i>
+                </div>
+                <h2 class="text-xl font-bold text-gray-900">Memorias del Personaje</h2>
+            </div>
+            <div class="mb-4 relative">
+                <i class="fa-solid fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                <input type="text" id="memories-search" oninput="app.filterMemories(this.value)" placeholder="Buscar memorias..." class="w-full bg-gray-50 border border-gray-300 rounded-lg pl-10 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all">
+            </div>
+            <div id="memories-list" class="flex-1 overflow-y-auto space-y-2 pr-1"></div>
+        </div>
+    </div>
+
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
@@ -634,13 +655,14 @@
             els = {
                 auth: { view: document.getElementById('view-auth'), username: document.getElementById('auth-username'), pass: document.getElementById('auth-pass'), btnMain: document.getElementById('auth-btn-main'), btnToggle: document.getElementById('auth-btn-toggle'), error: document.getElementById('auth-error') },
                 navbar: document.getElementById('navbar'), navUser: document.getElementById('nav-user-email'), userCoins: document.getElementById('user-coins'), navCoinsContainer: document.getElementById('nav-coins-container'), homeUserCoins: document.getElementById('home-user-coins'), searchInput: document.getElementById('search-input'),
-                views: { home: document.getElementById('view-home'), create1: document.getElementById('view-create-1'), create2: document.getElementById('view-create-2'), chat: document.getElementById('view-chat'), leaderboard: document.getElementById('view-leaderboard') },
+                views: { home: document.getElementById('view-home'), create1: document.getElementById('view-create-1'), create2: document.getElementById('view-create-2'), chat: document.getElementById('view-chat'), leaderboard: document.getElementById('view-leaderboard'), memories: document.getElementById('view-memories') },
                 grid: document.getElementById('bots-grid'), createTitle: document.getElementById('create-title'), btnPublishText: document.getElementById('btn-publish-text'), btnDeleteBot: document.getElementById('btn-delete-bot'),
-                inputs: { name: document.getElementById('input-name'), desc: document.getElementById('input-desc'), tag: document.getElementById('input-tag'), system: document.getElementById('input-system'), isPrivate: document.getElementById('input-private'), isPaid: document.getElementById('input-paid'), isDan: document.getElementById('input-dan'), price: document.getElementById('input-price'), message: document.getElementById('message-input') },
+                inputs: { name: document.getElementById('input-name'), desc: document.getElementById('input-desc'), tag: document.getElementById('input-tag'), system: document.getElementById('input-system'), isPrivate: document.getElementById('input-private'), isPaid: document.getElementById('input-paid'), isDan: document.getElementById('input-dan'), price: document.getElementById('input-price'), message: document.getElementById('message-input'), memoriesSearch: document.getElementById('memories-search') },
                 priceContainer: document.getElementById('price-container'),
                 avatarPreview: document.getElementById('avatar-preview'), avatarUploadStatus: document.getElementById('avatar-upload-status'),
                 chat: { container: document.getElementById('chat-messages'), header: document.getElementById('chat-header-info'), sendBtn: document.getElementById('send-btn'), statusMsg: document.getElementById('chat-status-msg'), imgPreview: document.getElementById('img-preview-container'), imgPreviewSrc: document.getElementById('img-preview'), sidebar: document.getElementById('chat-sidebar'), sidebarList: document.getElementById('chat-sidebar-list'), backdrop: document.getElementById('chat-sidebar-backdrop'), scrollBtn: document.getElementById('scroll-to-bottom-btn') },
                 leaderboardList: document.getElementById('leaderboard-list'), tabBots: document.getElementById('tab-bots'), tabUsers: document.getElementById('tab-users'),
+                memoriesList: document.getElementById('memories-list'),
                 modal: { overlay: document.getElementById('global-modal'), content: document.getElementById('modal-content'), title: document.getElementById('modal-title'), msg: document.getElementById('modal-msg'), actions: document.getElementById('modal-actions'), icon: document.getElementById('modal-icon') }
             };
 
@@ -1444,6 +1466,79 @@
             } catch (e) { }
         }
 
+        const openMemoriesModal = async () => {
+            els.views.memories.classList.remove('hidden');
+            window.app.state.memoriesSearchQuery = '';
+            els.inputs.memoriesSearch.value = '';
+            await window.app.renderMemories();
+        };
+
+        const closeMemoriesModal = () => {
+            els.views.memories.classList.add('hidden');
+        };
+
+        const filterMemories = (query) => {
+            window.app.state.memoriesSearchQuery = query.toLowerCase();
+            window.app.renderMemories();
+        };
+
+        const renderMemories = async () => {
+            if (!window.app.state.currentBot) return;
+            const listEl = els.memoriesList;
+            listEl.innerHTML = '<div class="text-center py-4"><i class="fa-solid fa-circle-notch fa-spin text-purple-500"></i> Cargando memorias...</div>';
+            
+            try {
+                const botData = await getBotData(window.app.state.currentBot.id);
+                let memories = botData.items || [];
+                
+                if (window.app.state.memoriesSearchQuery) {
+                    memories = memories.filter(m => m.toLowerCase().includes(window.app.state.memoriesSearchQuery));
+                }
+
+                if (memories.length === 0) {
+                    listEl.innerHTML = '<div class="text-center py-8 text-gray-500"><i class="fa-solid fa-brain text-4xl mb-3 text-gray-300 block"></i> No hay memorias aún o no coinciden con la búsqueda.</div>';
+                    return;
+                }
+
+                listEl.innerHTML = '';
+                // Render from newest to oldest
+                memories.slice().reverse().forEach((memory, idx) => {
+                    // Re-calculate original index since we reversed and filtered
+                    const originalIndex = botData.items.indexOf(memory);
+                    const memoryEl = document.createElement('div');
+                    memoryEl.className = "flex justify-between items-start bg-gray-50 p-3 rounded-xl border border-gray-200 group";
+                    memoryEl.innerHTML = `
+                        <div class="text-sm text-gray-700 flex-1 pr-3 break-words">${memory}</div>
+                        <button onclick="app.deleteMemory(${originalIndex})" class="text-gray-400 hover:text-red-500 w-8 h-8 rounded-full flex items-center justify-center hover:bg-gray-200 shrink-0 opacity-0 md:group-hover:opacity-100 transition-opacity" title="Borrar memoria" style="opacity: 1;">
+                            <i class="fa-solid fa-trash-can text-sm"></i>
+                        </button>
+                    `;
+                    listEl.appendChild(memoryEl);
+                });
+            } catch (e) {
+                console.error(e);
+                listEl.innerHTML = '<div class="text-center py-4 text-red-500">Error al cargar memorias.</div>';
+            }
+        };
+
+        const deleteMemory = async (index) => {
+            if (!confirm("¿Seguro que quieres borrar esta memoria?")) return;
+            try {
+                const botData = await getBotData(window.app.state.currentBot.id);
+                let memories = botData.items || [];
+                
+                if (index >= 0 && index < memories.length) {
+                    memories.splice(index, 1);
+                    const docRef = doc(db, 'artifacts', appId, 'users', window.app.state.user.uid, 'memories', window.app.state.currentBot.id);
+                    await setDoc(docRef, { items: memories }, { merge: true });
+                    await window.app.renderMemories();
+                }
+            } catch (e) {
+                console.error("Error al borrar memoria:", e);
+                alert("Hubo un error al borrar la memoria.");
+            }
+        };
+
         const sendMessage = async () => {
             if (window.app.state.isChatStopped) return;
             const text = els.inputs.message.value.trim(); if (!text && !window.app.state.attachedImage) return;
@@ -1819,7 +1914,8 @@
             toggleChatLock,
             handleBotClick, showPaymentModal, showChatModeSelection, processPayment, toggleChatSidebar, loadChatSidebar, openChat, openVoiceChat, likeBot, startCreation, editBot, goToPromptEditor, publishBot, deleteBot, askClearChat, clearChat, appendMessage, saveChatMessage, sendMessage, stopChat, switchLeaderboardTab, showLeaderboard, backToDetails,
             handleImageUpload, handlePixtralImageUpload, handleFileUpload, clearImageAttachment, downloadImage, generateImage, handleAvatarUpload,
-            renderChatHeader, renameCurrentSession, createNewSessionForBot, scrollToBottom, forceScrollToBottom
+            renderChatHeader, renameCurrentSession, createNewSessionForBot, scrollToBottom, forceScrollToBottom,
+            openMemoriesModal, closeMemoriesModal, renderMemories, filterMemories, deleteMemory
         };
 
         window.app.constants = {
