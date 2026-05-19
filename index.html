@@ -584,9 +584,13 @@
     </main>
 
     <!-- MEMORIES VIEW -->
-    <div id="view-memories" class="fixed inset-0 flex items-center justify-center bg-gray-900/40 backdrop-blur-sm z-[70] hidden">
-        <div class="bg-white p-6 rounded-2xl w-full max-w-lg shadow-2xl relative border border-gray-100 flex flex-col max-h-[85vh] mx-4 fade-in">
-            <button onclick="app.closeMemoriesModal()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-700 w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100"><i class="fa-solid fa-xmark text-lg"></i></button>
+    <div id="view-memories"
+        class="fixed inset-0 flex items-center justify-center bg-gray-900/40 backdrop-blur-sm z-[70] hidden">
+        <div
+            class="bg-white p-6 rounded-2xl w-full max-w-lg shadow-2xl relative border border-gray-100 flex flex-col max-h-[85vh] mx-4 fade-in">
+            <button onclick="app.closeMemoriesModal()"
+                class="absolute top-4 right-4 text-gray-400 hover:text-gray-700 w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100"><i
+                    class="fa-solid fa-xmark text-lg"></i></button>
             <div class="flex items-center gap-3 mb-4">
                 <div class="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center text-purple-600">
                     <i class="fa-solid fa-brain text-lg"></i>
@@ -595,7 +599,9 @@
             </div>
             <div class="mb-4 relative">
                 <i class="fa-solid fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
-                <input type="text" id="memories-search" oninput="app.filterMemories(this.value)" placeholder="Buscar memorias..." class="w-full bg-gray-50 border border-gray-300 rounded-lg pl-10 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all">
+                <input type="text" id="memories-search" oninput="app.filterMemories(this.value)"
+                    placeholder="Buscar memorias..."
+                    class="w-full bg-gray-50 border border-gray-300 rounded-lg pl-10 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all">
             </div>
             <div id="memories-list" class="flex-1 overflow-y-auto space-y-2 pr-1"></div>
         </div>
@@ -622,7 +628,7 @@
         const db = getFirestore(firebaseApp);
         const appId = "aiportal-ce688";
         const mistralApiKey = "mjVkbhVGVY43LJNMttSLDYOFSYFSkOuv";
-        const YYFUrl = 'https://yyf.mubilop.com'; // URL de YeetYourFiles
+        const YYFUrl = 'https://greenbase.arielcapdevila.com'; // URL de Greenbase
 
         // MODIFIED SYSTEM PROMPT TO INCLUDE TIME & MEMORY INSTRUCTIONS AND PLAYABLES
         const PRE_SYSTEM_PROMPT = " [SYSTEM: Si debes terminar, escribe '/stop'. Si el usuario pide generar una imagen, escribe EXCLUSIVAMENTE '[IMG:descripcion detallada]'. APPS INTERACTIVAS: Si el usuario te pide una app, juego o herramienta, créala escribiendo [PLAYABLE] código HTML/CSS/JS completo [/PLAYABLE]. No incluyas markdown blocks (```html) dentro de la etiqueta, escribe solo HTML puro. Se inyectará Tailwind CSS automáticamente. Debes hacer los playables para que se ajustesn mucho al tamaño de ponerse en un iframe y que no usen urls externas que no sean paquetes. En vez de urls de sfx, usa web audio api y tone.js, por ejemplo. GESTIÓN DE MEMORIA Y TIEMPO: Tienes CONSCIENCIA TEMPORAL. Se te indicará la fecha actual y cuánto tiempo ha pasado desde la última conversación. USA esta información. Si ha pasado mucho tiempo, pregunta qué tal. GESTIÓN DE MEMORIA: Si el usuario justifica su ausencia, DEBES guardarlo escribiendo explícitamente [MEMO:razón] en tu respuesta. También guarda cosas importantes. Ejemplo: '[MEMO:Se fue a dormir temprano]'.] ";
@@ -1052,25 +1058,29 @@
                         document.getElementById('btn-lock-chat').classList.add('text-gray-400');
                     }
 
+                    const messagesRef = collection(db, 'artifacts', appId, 'users', window.app.state.user.uid, 'chat_sessions', activeSession.id, 'messages');
+                    const messagesQuery = query(messagesRef, orderBy('ts', 'asc'));
+                    const messagesSnap = await getDocs(messagesQuery);
+                    let sessionMessages = [];
+                    messagesSnap.forEach(d => sessionMessages.push({ id: d.id, ...d.data() }));
+
                     let failedDecryption = false;
                     let decryptedMessages = [];
-                    if (activeSession.messages) {
-                        for (let m of activeSession.messages) {
-                            let msgObj = { ...m };
-                            if (msgObj.enc || activeSession.isEncrypted) {
-                                if (!window.app.state.sessionPassword) { failedDecryption = true; break; }
-                                try {
-                                    const bytes = CryptoJS.AES.decrypt(msgObj.content, window.app.state.sessionPassword);
-                                    const decStr = bytes.toString(CryptoJS.enc.Utf8);
-                                    if (!decStr) throw new Error("bad pwd");
-                                    msgObj.content = JSON.parse(decStr);
-                                } catch (e) {
-                                    failedDecryption = true;
-                                    break;
-                                }
+                    for (let m of sessionMessages) {
+                        let msgObj = { ...m };
+                        if (msgObj.enc || activeSession.isEncrypted) {
+                            if (!window.app.state.sessionPassword) { failedDecryption = true; break; }
+                            try {
+                                const bytes = CryptoJS.AES.decrypt(msgObj.content, window.app.state.sessionPassword);
+                                const decStr = bytes.toString(CryptoJS.enc.Utf8);
+                                if (!decStr) throw new Error("bad pwd");
+                                msgObj.content = JSON.parse(decStr);
+                            } catch (e) {
+                                failedDecryption = true;
+                                break;
                             }
-                            decryptedMessages.push(msgObj);
                         }
+                        decryptedMessages.push(msgObj);
                     }
 
                     if (failedDecryption) {
@@ -1106,10 +1116,10 @@
                                 window.app.appendMessage('user', displayHtml);
                             } else if (msg.role === 'assistant' || msg.role === 'model') {
                                 let tempMarkdown = msg.content.replace(/\[MEMO:(.*?)\]/g, "");
-                                tempMarkdown = tempMarkdown.replace(/\[IMG:(.*?)\]/g, (match, prompt) => {
-                                    const encodedPrompt = encodeURIComponent(prompt);
-                                    const seed = (prompt.length * 42) % 1000;
-                                    const url = `https://freeai.logise1123.workers.dev/image/${encodedPrompt}?raw=true&nologo=true&seed=${seed}`;
+                                tempMarkdown = tempMarkdown.replace(/\[IMG:([\s\S]*?)\]/g, (match, prompt) => {
+                                    const cleanPrompt = prompt.replace(/\r?\n/g, ' ').trim();
+                                    const encodedPrompt = encodeURIComponent(cleanPrompt);
+                                    const url = `https://freeai.logise1123.workers.dev/image/prompt/${encodedPrompt}?nologo=true`;
                                     return `\n\n<div class="my-2 w-72 aspect-square relative group"><img src="${url}" class="rounded-lg w-full h-full object-cover border border-gray-200"></div>\n\n`;
                                 });
 
@@ -1171,16 +1181,23 @@
             window.location.href = 'voice.html';
         };
 
-        const handleImageUpload = (input) => {
+        const handleImageUpload = async (input) => {
             const file = input.files[0];
             if (!file) return;
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                window.app.state.attachedImage = e.target.result;
-                els.chat.imgPreviewSrc.src = e.target.result;
+            try {
+                const formData = new FormData();
+                formData.append('file', file);
+                const response = await fetch(`${YYFUrl}/upload`, { method: 'POST', body: formData });
+                if (!response.ok) throw new Error('Upload failed');
+                const result = await response.json();
+                const fullUrl = `${YYFUrl}/file/${result.id}`;
+                window.app.state.attachedImage = fullUrl;
+                els.chat.imgPreviewSrc.src = fullUrl;
                 els.chat.imgPreview.classList.remove('hidden');
-            };
-            reader.readAsDataURL(file);
+            } catch (e) {
+                console.error("Error uploading image:", e);
+                alert("Error al subir la imagen.");
+            }
         };
 
         const handlePixtralImageUpload = async (input) => {
@@ -1188,48 +1205,49 @@
             if (!file) return;
 
             const prevMsg = els.inputs.message.value;
-            els.inputs.message.value = "Analizando imagen...";
+            els.inputs.message.value = "Subiendo y analizando imagen...";
             els.inputs.message.disabled = true;
 
-            const reader = new FileReader();
-            reader.onload = async (e) => {
-                const base64Image = e.target.result;
+            try {
+                const formData = new FormData();
+                formData.append('file', file);
+                const uploadResponse = await fetch(`${YYFUrl}/upload`, { method: 'POST', body: formData });
+                if (!uploadResponse.ok) throw new Error('Upload failed');
+                const uploadResult = await uploadResponse.json();
+                const fullUrl = `${YYFUrl}/file/${uploadResult.id}`;
 
-                try {
-                    const resp = await fetch("https://api.mistral.ai/v1/chat/completions", {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${mistralApiKey}` },
-                        body: JSON.stringify({
-                            model: "pixtral-12b-2409",
-                            messages: [{
-                                role: "user",
-                                content: [
-                                    { type: "text", text: "Haz un resumen amplio y muy detallado de esta imagen." },
-                                    { type: "image_url", image_url: base64Image }
-                                ]
-                            }],
-                            stream: false
-                        })
-                    });
-                    const json = await resp.json();
-                    const description = json.choices[0].message.content;
+                const resp = await fetch("https://api.mistral.ai/v1/chat/completions", {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${mistralApiKey}` },
+                    body: JSON.stringify({
+                        model: "pixtral-12b-2409",
+                        messages: [{
+                            role: "user",
+                            content: [
+                                { type: "text", text: "Haz un resumen amplio y muy detallado de esta imagen." },
+                                { type: "image_url", image_url: fullUrl }
+                            ]
+                        }],
+                        stream: false
+                    })
+                });
+                const json = await resp.json();
+                const description = json.choices[0].message.content;
 
-                    els.inputs.message.value = prevMsg + (prevMsg ? "\n\n" : "") + `[Imagen adjunta: ${description}]`;
-                    els.inputs.message.disabled = false;
-                    els.inputs.message.focus();
+                els.inputs.message.value = prevMsg + (prevMsg ? "\n\n" : "") + `[Imagen adjunta: ${description}]`;
+                els.inputs.message.disabled = false;
+                els.inputs.message.focus();
 
-                    window.app.state.attachedImage = base64Image;
-                    els.chat.imgPreviewSrc.src = base64Image;
-                    els.chat.imgPreview.classList.remove('hidden');
-                } catch (err) {
-                    els.inputs.message.value = prevMsg;
-                    els.inputs.message.disabled = false;
-                    console.error(err);
-                    alert("Error al analizar la imagen.");
-                }
-                input.value = "";
-            };
-            reader.readAsDataURL(file);
+                window.app.state.attachedImage = fullUrl;
+                els.chat.imgPreviewSrc.src = fullUrl;
+                els.chat.imgPreview.classList.remove('hidden');
+            } catch (err) {
+                els.inputs.message.value = prevMsg;
+                els.inputs.message.disabled = false;
+                console.error(err);
+                alert("Error al subir o analizar la imagen.");
+            }
+            input.value = "";
         };
 
         const handleFileUpload = async (input) => {
@@ -1243,10 +1261,10 @@
             const formData = new FormData();
             formData.append('file', file);
             try {
-                const response = await fetch(`${YYFUrl}/api/upload`, { method: 'POST', body: formData });
+                const response = await fetch(`${YYFUrl}/upload`, { method: 'POST', body: formData });
                 if (!response.ok) throw new Error('Upload failed');
                 const result = await response.json();
-                const fullUrl = YYFUrl + result.fileUrl;
+                const fullUrl = `${YYFUrl}/file/${result.id}`;
 
                 els.inputs.message.value = prevMsg + (prevMsg ? " " : "") + fullUrl;
                 els.inputs.message.disabled = false;
@@ -1272,10 +1290,10 @@
             const formData = new FormData();
             formData.append('file', file);
             try {
-                const response = await fetch(`${YYFUrl}/api/upload`, { method: 'POST', body: formData });
+                const response = await fetch(`${YYFUrl}/upload`, { method: 'POST', body: formData });
                 if (!response.ok) throw new Error('Upload failed');
                 const result = await response.json();
-                const fullUrl = YYFUrl + result.fileUrl;
+                const fullUrl = `${YYFUrl}/file/${result.id}`;
                 window.app.state.draftBot.avatar = fullUrl;
                 els.avatarUploadStatus.innerText = "¡Subida exitosa!";
                 els.avatarUploadStatus.classList.add('text-green-500');
@@ -1394,6 +1412,11 @@
         const clearChat = async () => {
             if (window.app.state.user && window.app.state.currentSessionId && window.app.state.currentSessionId !== 'local') {
                 try {
+                    const messagesRef = collection(db, 'artifacts', appId, 'users', window.app.state.user.uid, 'chat_sessions', window.app.state.currentSessionId, 'messages');
+                    const messagesSnap = await getDocs(messagesRef);
+                    for (const mDoc of messagesSnap.docs) {
+                        await deleteDoc(doc(db, 'artifacts', appId, 'users', window.app.state.user.uid, 'chat_sessions', window.app.state.currentSessionId, 'messages', mDoc.id));
+                    }
                     const sessionRef = doc(db, 'artifacts', appId, 'users', window.app.state.user.uid, 'chat_sessions', window.app.state.currentSessionId);
                     await deleteDoc(sessionRef);
                 } catch (e) { console.error("Error deleting chat session", e); }
@@ -1430,9 +1453,15 @@
                     savedContent = CryptoJS.AES.encrypt(JSON.stringify(content), window.app.state.sessionPassword).toString();
                     isEncryptedMsg = true;
                 }
+                const messagesRef = collection(db, 'artifacts', appId, 'users', window.app.state.user.uid, 'chat_sessions', sessionId, 'messages');
+                await addDoc(messagesRef, {
+                    role,
+                    content: savedContent,
+                    ts: Date.now(),
+                    enc: isEncryptedMsg
+                });
                 const sessionRef = doc(db, 'artifacts', appId, 'users', window.app.state.user.uid, 'chat_sessions', sessionId);
                 await setDoc(sessionRef, {
-                    messages: arrayUnion({ role, content: savedContent, ts: Date.now(), enc: isEncryptedMsg }),
                     updatedAt: Date.now()
                 }, { merge: true });
             } catch (e) {
@@ -1486,11 +1515,11 @@
             if (!window.app.state.currentBot) return;
             const listEl = els.memoriesList;
             listEl.innerHTML = '<div class="text-center py-4"><i class="fa-solid fa-circle-notch fa-spin text-purple-500"></i> Cargando memorias...</div>';
-            
+
             try {
                 const botData = await getBotData(window.app.state.currentBot.id);
                 let memories = botData.items || [];
-                
+
                 if (window.app.state.memoriesSearchQuery) {
                     memories = memories.filter(m => m.toLowerCase().includes(window.app.state.memoriesSearchQuery));
                 }
@@ -1526,7 +1555,7 @@
             try {
                 const botData = await getBotData(window.app.state.currentBot.id);
                 let memories = botData.items || [];
-                
+
                 if (index >= 0 && index < memories.length) {
                     memories.splice(index, 1);
                     const docRef = doc(db, 'artifacts', appId, 'users', window.app.state.user.uid, 'memories', window.app.state.currentBot.id);
@@ -1550,7 +1579,8 @@
             els.inputs.message.value = ''; window.app.appendMessage('user', displayContent);
 
             els.chat.sendBtn.disabled = true;
-            els.inputs.message.disabled = true;
+            // dejame escribir en la barra de chat mientras genera
+            els.inputs.message.disabled = false;
 
             const now = new Date();
             const timestamp = `[${now.getDate().toString().padStart(2, '0')}/${(now.getMonth() + 1).toString().padStart(2, '0')}/${now.getFullYear()} ${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}]`;
@@ -1678,7 +1708,7 @@
                                 if (json.choices?.[0]?.delta?.content) {
                                     const chunk = json.choices[0].delta.content; fullResponse += chunk;
 
-                                    const imgRegex = /\[IMG:(.*?)\]/g;
+                                    const imgRegex = /\[IMG:([\s\S]*?)\]/g;
                                     let match;
                                     while ((match = imgRegex.exec(fullResponse)) !== null) {
                                         const fullTag = match[0];
@@ -1803,16 +1833,55 @@
             }
         };
 
-        const generateImage = (prompt, imgId, fullTag) => {
-            const encodedPrompt = encodeURIComponent(prompt);
-            const seed = (prompt.length * 42) % 1000;
-            const url = `https://freeai.logise1123.workers.dev/image/${encodedPrompt}?raw=true&nologo=true&seed=${seed}`;
-            const img = new Image();
-            img.src = url;
-            img.onload = () => {
+        const generateImage = async (prompt, imgId, fullTag) => {
+            const cleanPrompt = prompt.replace(/\r?\n/g, ' ').trim();
+            const encodedPrompt = encodeURIComponent(cleanPrompt);
+            const generatorUrl = `https://freeai.logise1123.workers.dev/image/prompt/${encodedPrompt}?nologo=true`;
+            try {
+                // Descargar la imagen del worker como blob
+                const imageResponse = await fetch(generatorUrl);
+                if (!imageResponse.ok) throw new Error("Failed to generate image from worker");
+                const imageBlob = await imageResponse.blob();
+
+                // Subir a YeetYourFiles (YYF)
+                const formData = new FormData();
+                formData.append('file', imageBlob, `generated-${imgId}.jpg`);
+
+                const uploadResponse = await fetch(`${YYFUrl}/upload`, {
+                    method: 'POST',
+                    body: formData
+                });
+                if (!uploadResponse.ok) throw new Error("Failed to upload generated image to storage");
+                
+                const uploadResult = await uploadResponse.json();
+                const uploadedUrl = `${YYFUrl}/file/${uploadResult.id}`;
+
+                // Marcar como completado y guardar la URL permanente de YYF
                 window.app.state.generatedImages[fullTag].status = 'done';
-                window.app.state.generatedImages[fullTag].url = url;
-            };
+                window.app.state.generatedImages[fullTag].url = uploadedUrl;
+
+                // Remplazar el placeholder directamente en el DOM para inmediatez
+                const placeholderEl = document.getElementById(imgId);
+                if (placeholderEl) {
+                    const parentEl = placeholderEl.parentElement;
+                    if (parentEl) {
+                        const widget = document.createElement('div');
+                        widget.className = "my-2 w-72 aspect-square relative group";
+                        widget.innerHTML = `<img src="${uploadedUrl}" class="rounded-lg w-full h-full object-cover no-drag border border-gray-200" oncontextmenu="return false;">
+                                            <button onclick="window.app.downloadImage('${uploadedUrl}')" class="absolute top-2 right-2 bg-black/50 hover:bg-black/70 text-white p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <i class="fa-solid fa-download"></i>
+                                            </button>`;
+                        parentEl.replaceChild(widget, placeholderEl);
+                    }
+                }
+            } catch (error) {
+                console.error("Error generating/uploading image:", error);
+                const placeholderEl = document.getElementById(imgId);
+                if (placeholderEl) {
+                    placeholderEl.innerHTML = `<span class="text-red-500 text-xs font-semibold p-4 text-center">Error al generar imagen</span>`;
+                    placeholderEl.classList.remove('shimmer');
+                }
+            }
         };
 
         const stopChat = () => { window.app.state.isChatStopped = true; els.inputs.message.disabled = true; els.chat.sendBtn.disabled = true; els.chat.statusMsg.innerText = "Chat finalizado por el bot."; els.chat.statusMsg.classList.remove('hidden'); };
@@ -1856,26 +1925,31 @@
                 if (!snap.exists()) return;
                 const sessionData = snap.data();
 
+                const messagesRef = collection(db, 'artifacts', appId, 'users', window.app.state.user.uid, 'chat_sessions', window.app.state.currentSessionId, 'messages');
+                const messagesSnap = await getDocs(messagesRef);
+
                 if (sessionData.isEncrypted) {
                     const conf = confirm("El chat ya está bloqueado. ¿Deseas quitar la contraseña?");
                     if (conf) {
-                        let decryptedMsgs = [];
-                        for (let m of sessionData.messages || []) {
+                        for (let mDoc of messagesSnap.docs) {
+                            let m = mDoc.data();
                             if (m.enc) {
                                 try {
                                     const bytes = CryptoJS.AES.decrypt(m.content, window.app.state.sessionPassword);
                                     const decStr = bytes.toString(CryptoJS.enc.Utf8);
                                     if (!decStr) throw new Error("bad pwd");
-                                    m.content = JSON.parse(decStr);
-                                    m.enc = false;
+                                    const decContent = JSON.parse(decStr);
+                                    await updateDoc(doc(db, 'artifacts', appId, 'users', window.app.state.user.uid, 'chat_sessions', window.app.state.currentSessionId, 'messages', mDoc.id), {
+                                        content: decContent,
+                                        enc: false
+                                    });
                                 } catch (e) {
                                     alert("Error al desencriptar. Asegúrate de haber entrado con la contraseña correcta.");
                                     return;
                                 }
                             }
-                            decryptedMsgs.push(m);
                         }
-                        await updateDoc(sessionRef, { isEncrypted: false, messages: decryptedMsgs });
+                        await updateDoc(sessionRef, { isEncrypted: false });
                         window.app.state.sessionPassword = null;
                         document.getElementById('btn-lock-chat').innerHTML = '<i class="fa-solid fa-lock-open"></i>';
                         document.getElementById('btn-lock-chat').classList.remove('text-amber-500');
@@ -1885,15 +1959,17 @@
                 } else {
                     const pwd = prompt("Introduce una contraseña para encriptar y bloquear este chat:");
                     if (!pwd) return;
-                    let encryptedMsgs = [];
-                    for (let m of sessionData.messages || []) {
+                    for (let mDoc of messagesSnap.docs) {
+                        let m = mDoc.data();
                         if (!m.enc) {
-                            m.content = CryptoJS.AES.encrypt(JSON.stringify(m.content), pwd).toString();
-                            m.enc = true;
+                            const encContent = CryptoJS.AES.encrypt(JSON.stringify(m.content), pwd).toString();
+                            await updateDoc(doc(db, 'artifacts', appId, 'users', window.app.state.user.uid, 'chat_sessions', window.app.state.currentSessionId, 'messages', mDoc.id), {
+                                content: encContent,
+                                enc: true
+                            });
                         }
-                        encryptedMsgs.push(m);
                     }
-                    await updateDoc(sessionRef, { isEncrypted: true, messages: encryptedMsgs });
+                    await updateDoc(sessionRef, { isEncrypted: true });
                     window.app.state.sessionPassword = pwd;
                     document.getElementById('btn-lock-chat').innerHTML = '<i class="fa-solid fa-lock"></i>';
                     document.getElementById('btn-lock-chat').classList.add('text-amber-500');
