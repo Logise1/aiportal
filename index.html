@@ -301,7 +301,8 @@
                         class="relative z-10 bg-white/10 hover:bg-white/20 border border-white/20 text-white px-6 py-4 rounded-xl font-bold transition-all flex items-center gap-3 w-full md:w-auto justify-center backdrop-blur-sm">
                         <div
                             class="w-10 h-10 bg-amber-400 rounded-full flex items-center justify-center text-amber-900 shadow-lg">
-                            <i class="fa-solid fa-trophy text-lg"></i></div>
+                            <i class="fa-solid fa-trophy text-lg"></i>
+                        </div>
                         <div class="text-left"><span class="block text-xs text-indigo-100 font-normal">Ranking
                                 Global</span><span class="block text-sm">Ver Clasificación</span></div>
                     </button>
@@ -519,6 +520,9 @@
                             title="Pasar a chat de voz">
                             <i class="fa-solid fa-microphone"></i> <span class="hidden sm:inline">Voz</span>
                         </button>
+                        <button onclick="app.openMemoriesModal()"
+                            class="text-gray-400 hover:text-purple-500 w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-50 transition-all"
+                            title="Memorias del personaje"><i class="fa-solid fa-brain"></i></button>
                         <button onclick="app.askClearChat()"
                             class="text-gray-400 hover:text-red-500 w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-50 transition-all"
                             title="Borrar historial"><i class="fa-solid fa-trash-can"></i></button>
@@ -548,18 +552,19 @@
                 <div id="chat-input-container" class="p-4 bg-white border-t border-gray-200 flex-shrink-0 pb-safe">
                     <div class="max-w-4xl mx-auto relative flex gap-2 items-end">
                         <button onclick="document.getElementById('pixtral-image-input').click()"
-                            class="bg-gray-100 hover:bg-gray-200 text-indigo-500 p-3 rounded-xl transition-colors h-[50px] w-[50px] flex items-center justify-center shrink-0" title="Foto / Analizar Imagen">
+                            class="bg-gray-100 hover:bg-gray-200 text-indigo-500 p-3 rounded-xl transition-colors h-[50px] w-[50px] flex items-center justify-center shrink-0"
+                            title="Foto / Analizar Imagen">
                             <i class="fa-solid fa-camera text-lg"></i>
                         </button>
                         <input type="file" id="pixtral-image-input" accept="image/*" class="hidden"
                             onchange="app.handlePixtralImageUpload(this)">
 
                         <button onclick="document.getElementById('file-input').click()"
-                            class="bg-gray-100 hover:bg-gray-200 text-gray-500 p-3 rounded-xl transition-colors h-[50px] w-[50px] flex items-center justify-center shrink-0" title="Subir Archivo">
+                            class="bg-gray-100 hover:bg-gray-200 text-gray-500 p-3 rounded-xl transition-colors h-[50px] w-[50px] flex items-center justify-center shrink-0"
+                            title="Subir Archivo">
                             <i class="fa-solid fa-paperclip text-lg"></i>
                         </button>
-                        <input type="file" id="file-input" class="hidden"
-                            onchange="app.handleFileUpload(this)">
+                        <input type="file" id="file-input" class="hidden" onchange="app.handleFileUpload(this)">
 
                         <input type="text" id="message-input"
                             class="w-full bg-gray-50 border border-gray-300 rounded-xl px-5 py-3 text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-50 disabled:bg-gray-100 h-[50px]"
@@ -577,6 +582,30 @@
         </div>
 
     </main>
+
+    <!-- MEMORIES VIEW -->
+    <div id="view-memories"
+        class="fixed inset-0 flex items-center justify-center bg-gray-900/40 backdrop-blur-sm z-[70] hidden">
+        <div
+            class="bg-white p-6 rounded-2xl w-full max-w-lg shadow-2xl relative border border-gray-100 flex flex-col max-h-[85vh] mx-4 fade-in">
+            <button onclick="app.closeMemoriesModal()"
+                class="absolute top-4 right-4 text-gray-400 hover:text-gray-700 w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100"><i
+                    class="fa-solid fa-xmark text-lg"></i></button>
+            <div class="flex items-center gap-3 mb-4">
+                <div class="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center text-purple-600">
+                    <i class="fa-solid fa-brain text-lg"></i>
+                </div>
+                <h2 class="text-xl font-bold text-gray-900">Memorias del Personaje</h2>
+            </div>
+            <div class="mb-4 relative">
+                <i class="fa-solid fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                <input type="text" id="memories-search" oninput="app.filterMemories(this.value)"
+                    placeholder="Buscar memorias..."
+                    class="w-full bg-gray-50 border border-gray-300 rounded-lg pl-10 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all">
+            </div>
+            <div id="memories-list" class="flex-1 overflow-y-auto space-y-2 pr-1"></div>
+        </div>
+    </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
@@ -599,8 +628,8 @@
         const db = getFirestore(firebaseApp);
         const appId = "aiportal-ce688";
         const aiApiKey = "pk_live_1bbaae0dfbab70bfcb2244232c0a7205f81cd235d054afe0";
-        const aiApiUrl = "https://gen.pollinations.ai";
-        const YYFUrl = 'https://yyf.mubilop.com'; // URL de YeetYourFiles
+        const aiApiUrl = "https://pangai.arielcapdevila.com";
+        const YYFUrl = 'https://greenbase.arielcapdevila.com'; // URL de Greenbase
 
         // MODIFIED SYSTEM PROMPT TO INCLUDE TIME & MEMORY INSTRUCTIONS AND PLAYABLES
         const PRE_SYSTEM_PROMPT = " [SYSTEM: Si debes terminar, escribe '/stop'. Si el usuario pide generar una imagen, escribe EXCLUSIVAMENTE '[IMG:descripcion detallada]'. APPS INTERACTIVAS: Si el usuario te pide una app, juego o herramienta, créala escribiendo [PLAYABLE] código HTML/CSS/JS completo [/PLAYABLE]. No incluyas markdown blocks (```html) dentro de la etiqueta, escribe solo HTML puro. Se inyectará Tailwind CSS automáticamente. Debes hacer los playables para que se ajustesn mucho al tamaño de ponerse en un iframe y que no usen urls externas que no sean paquetes. En vez de urls de sfx, usa web audio api y tone.js, por ejemplo. GESTIÓN DE MEMORIA Y TIEMPO: Tienes CONSCIENCIA TEMPORAL. Se te indicará la fecha actual y cuánto tiempo ha pasado desde la última conversación. USA esta información. Si ha pasado mucho tiempo, pregunta qué tal. GESTIÓN DE MEMORIA: Si el usuario justifica su ausencia, DEBES guardarlo escribiendo explícitamente [MEMO:razón] en tu respuesta. También guarda cosas importantes. Ejemplo: '[MEMO:Se fue a dormir temprano]'.] ";
@@ -633,13 +662,14 @@
             els = {
                 auth: { view: document.getElementById('view-auth'), username: document.getElementById('auth-username'), pass: document.getElementById('auth-pass'), btnMain: document.getElementById('auth-btn-main'), btnToggle: document.getElementById('auth-btn-toggle'), error: document.getElementById('auth-error') },
                 navbar: document.getElementById('navbar'), navUser: document.getElementById('nav-user-email'), userCoins: document.getElementById('user-coins'), navCoinsContainer: document.getElementById('nav-coins-container'), homeUserCoins: document.getElementById('home-user-coins'), searchInput: document.getElementById('search-input'),
-                views: { home: document.getElementById('view-home'), create1: document.getElementById('view-create-1'), create2: document.getElementById('view-create-2'), chat: document.getElementById('view-chat'), leaderboard: document.getElementById('view-leaderboard') },
+                views: { home: document.getElementById('view-home'), create1: document.getElementById('view-create-1'), create2: document.getElementById('view-create-2'), chat: document.getElementById('view-chat'), leaderboard: document.getElementById('view-leaderboard'), memories: document.getElementById('view-memories') },
                 grid: document.getElementById('bots-grid'), createTitle: document.getElementById('create-title'), btnPublishText: document.getElementById('btn-publish-text'), btnDeleteBot: document.getElementById('btn-delete-bot'),
-                inputs: { name: document.getElementById('input-name'), desc: document.getElementById('input-desc'), tag: document.getElementById('input-tag'), system: document.getElementById('input-system'), isPrivate: document.getElementById('input-private'), isPaid: document.getElementById('input-paid'), isDan: document.getElementById('input-dan'), price: document.getElementById('input-price'), message: document.getElementById('message-input') },
+                inputs: { name: document.getElementById('input-name'), desc: document.getElementById('input-desc'), tag: document.getElementById('input-tag'), system: document.getElementById('input-system'), isPrivate: document.getElementById('input-private'), isPaid: document.getElementById('input-paid'), isDan: document.getElementById('input-dan'), price: document.getElementById('input-price'), message: document.getElementById('message-input'), memoriesSearch: document.getElementById('memories-search') },
                 priceContainer: document.getElementById('price-container'),
                 avatarPreview: document.getElementById('avatar-preview'), avatarUploadStatus: document.getElementById('avatar-upload-status'),
                 chat: { container: document.getElementById('chat-messages'), header: document.getElementById('chat-header-info'), sendBtn: document.getElementById('send-btn'), statusMsg: document.getElementById('chat-status-msg'), imgPreview: document.getElementById('img-preview-container'), imgPreviewSrc: document.getElementById('img-preview'), sidebar: document.getElementById('chat-sidebar'), sidebarList: document.getElementById('chat-sidebar-list'), backdrop: document.getElementById('chat-sidebar-backdrop'), scrollBtn: document.getElementById('scroll-to-bottom-btn') },
                 leaderboardList: document.getElementById('leaderboard-list'), tabBots: document.getElementById('tab-bots'), tabUsers: document.getElementById('tab-users'),
+                memoriesList: document.getElementById('memories-list'),
                 modal: { overlay: document.getElementById('global-modal'), content: document.getElementById('modal-content'), title: document.getElementById('modal-title'), msg: document.getElementById('modal-msg'), actions: document.getElementById('modal-actions'), icon: document.getElementById('modal-icon') }
             };
 
@@ -1029,25 +1059,29 @@
                         document.getElementById('btn-lock-chat').classList.add('text-gray-400');
                     }
 
+                    const messagesRef = collection(db, 'artifacts', appId, 'users', window.app.state.user.uid, 'chat_sessions', activeSession.id, 'messages');
+                    const messagesQuery = query(messagesRef, orderBy('ts', 'asc'));
+                    const messagesSnap = await getDocs(messagesQuery);
+                    let sessionMessages = [];
+                    messagesSnap.forEach(d => sessionMessages.push({ id: d.id, ...d.data() }));
+
                     let failedDecryption = false;
                     let decryptedMessages = [];
-                    if (activeSession.messages) {
-                        for (let m of activeSession.messages) {
-                            let msgObj = { ...m };
-                            if (msgObj.enc || activeSession.isEncrypted) {
-                                if (!window.app.state.sessionPassword) { failedDecryption = true; break; }
-                                try {
-                                    const bytes = CryptoJS.AES.decrypt(msgObj.content, window.app.state.sessionPassword);
-                                    const decStr = bytes.toString(CryptoJS.enc.Utf8);
-                                    if (!decStr) throw new Error("bad pwd");
-                                    msgObj.content = JSON.parse(decStr);
-                                } catch (e) {
-                                    failedDecryption = true;
-                                    break;
-                                }
+                    for (let m of sessionMessages) {
+                        let msgObj = { ...m };
+                        if (msgObj.enc || activeSession.isEncrypted) {
+                            if (!window.app.state.sessionPassword) { failedDecryption = true; break; }
+                            try {
+                                const bytes = CryptoJS.AES.decrypt(msgObj.content, window.app.state.sessionPassword);
+                                const decStr = bytes.toString(CryptoJS.enc.Utf8);
+                                if (!decStr) throw new Error("bad pwd");
+                                msgObj.content = JSON.parse(decStr);
+                            } catch (e) {
+                                failedDecryption = true;
+                                break;
                             }
-                            decryptedMessages.push(msgObj);
                         }
+                        decryptedMessages.push(msgObj);
                     }
 
                     if (failedDecryption) {
@@ -1083,10 +1117,10 @@
                                 window.app.appendMessage('user', displayHtml);
                             } else if (msg.role === 'assistant' || msg.role === 'model') {
                                 let tempMarkdown = msg.content.replace(/\[MEMO:(.*?)\]/g, "");
-                                tempMarkdown = tempMarkdown.replace(/\[IMG:(.*?)\]/g, (match, prompt) => {
-                                    const encodedPrompt = encodeURIComponent(prompt);
-                                    const seed = (prompt.length * 42) % 1000;
-                                    const url = `https://freeai.logise1123.workers.dev/image/${encodedPrompt}?raw=true&nologo=true&seed=${seed}`;
+                                tempMarkdown = tempMarkdown.replace(/\[IMG:([\s\S]*?)\]/g, (match, prompt) => {
+                                    const cleanPrompt = prompt.replace(/\r?\n/g, ' ').trim();
+                                    const encodedPrompt = encodeURIComponent(cleanPrompt);
+                                    const url = `https://freeai.logise1123.workers.dev/image/prompt/${encodedPrompt}?nologo=true`;
                                     return `\n\n<div class="my-2 w-72 aspect-square relative group"><img src="${url}" class="rounded-lg w-full h-full object-cover border border-gray-200"></div>\n\n`;
                                 });
 
@@ -1148,83 +1182,90 @@
             window.location.href = 'voice.html';
         };
 
-        const handleImageUpload = (input) => {
+        const handleImageUpload = async (input) => {
             const file = input.files[0];
             if (!file) return;
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                window.app.state.attachedImage = e.target.result;
-                els.chat.imgPreviewSrc.src = e.target.result;
+            try {
+                const formData = new FormData();
+                formData.append('file', file);
+                const response = await fetch(`${YYFUrl}/upload`, { method: 'POST', body: formData });
+                if (!response.ok) throw new Error('Upload failed');
+                const result = await response.json();
+                const fullUrl = `${YYFUrl}/file/${result.id}`;
+                window.app.state.attachedImage = fullUrl;
+                els.chat.imgPreviewSrc.src = fullUrl;
                 els.chat.imgPreview.classList.remove('hidden');
-            };
-            reader.readAsDataURL(file);
+            } catch (e) {
+                console.error("Error uploading image:", e);
+                alert("Error al subir la imagen.");
+            }
         };
 
         const handlePixtralImageUpload = async (input) => {
             const file = input.files[0];
             if (!file) return;
-            
+
             const prevMsg = els.inputs.message.value;
-            els.inputs.message.value = "Analizando imagen...";
+            els.inputs.message.value = "Subiendo y analizando imagen...";
             els.inputs.message.disabled = true;
-            
-            const reader = new FileReader();
-            reader.onload = async (e) => {
-                const base64Image = e.target.result;
-                
-                try {
-                    const resp = await fetch(`${aiApiUrl}/v1/chat/completions`, {
-                        method: 'POST', 
-                        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${aiApiKey}` },
-                        body: JSON.stringify({ 
-                            model: "gemini-1.5-flash", 
-                            messages: [{
-                                role: "user",
-                                content: [
-                                    { type: "text", text: "Haz un resumen amplio y muy detallado de esta imagen." },
-                                    { type: "image_url", image_url: base64Image }
-                                ]
-                            }],
-                            stream: false
-                        })
-                    });
-                    const json = await resp.json();
-                    const description = json.choices[0].message.content;
-                    
-                    els.inputs.message.value = prevMsg + (prevMsg ? "\n\n" : "") + `[Imagen adjunta: ${description}]`;
-                    els.inputs.message.disabled = false;
-                    els.inputs.message.focus();
-                    
-                    window.app.state.attachedImage = base64Image;
-                    els.chat.imgPreviewSrc.src = base64Image;
-                    els.chat.imgPreview.classList.remove('hidden');
-                } catch (err) {
-                    els.inputs.message.value = prevMsg;
-                    els.inputs.message.disabled = false;
-                    console.error(err);
-                    alert("Error al analizar la imagen.");
-                }
-                input.value = "";
-            };
-            reader.readAsDataURL(file);
+            try {
+                const formData = new FormData();
+                formData.append('file', file);
+                const uploadResponse = await fetch(`${YYFUrl}/upload`, { method: 'POST', body: formData });
+                if (!uploadResponse.ok) throw new Error('Upload failed');
+                const uploadResult = await uploadResponse.json();
+                const fullUrl = `${YYFUrl}/file/${uploadResult.id}`;
+
+                const resp = await fetch(`${aiApiUrl}/v1/chat/completions`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${aiApiKey}` },
+                    body: JSON.stringify({
+                        model: "gemini-1.5-flash",
+                        messages: [{
+                            role: "user",
+                            content: [
+                                { type: "text", text: "Haz un resumen amplio y muy detallado de esta imagen." },
+                                { type: "image_url", image_url: fullUrl }
+                            ]
+                        }],
+                        stream: false
+                    })
+                });
+                const json = await resp.json();
+                const description = json.choices[0].message.content;
+
+                els.inputs.message.value = prevMsg + (prevMsg ? "\n\n" : "") + `[Imagen adjunta: ${description}]`;
+                els.inputs.message.disabled = false;
+                els.inputs.message.focus();
+
+                window.app.state.attachedImage = fullUrl;
+                els.chat.imgPreviewSrc.src = fullUrl;
+                els.chat.imgPreview.classList.remove('hidden');
+            } catch (err) {
+                els.inputs.message.value = prevMsg;
+                els.inputs.message.disabled = false;
+                console.error(err);
+                alert("Error al subir o analizar la imagen.");
+            }
+            input.value = "";
         };
 
         const handleFileUpload = async (input) => {
             const file = input.files[0];
             if (!file) return;
-            
+
             const prevMsg = els.inputs.message.value;
             els.inputs.message.value = "Subiendo archivo...";
             els.inputs.message.disabled = true;
-            
+
             const formData = new FormData();
             formData.append('file', file);
             try {
-                const response = await fetch(`${YYFUrl}/api/upload`, { method: 'POST', body: formData });
+                const response = await fetch(`${YYFUrl}/upload`, { method: 'POST', body: formData });
                 if (!response.ok) throw new Error('Upload failed');
                 const result = await response.json();
-                const fullUrl = YYFUrl + result.fileUrl;
-                
+                const fullUrl = `${YYFUrl}/file/${result.id}`;
+
                 els.inputs.message.value = prevMsg + (prevMsg ? " " : "") + fullUrl;
                 els.inputs.message.disabled = false;
                 els.inputs.message.focus();
@@ -1249,10 +1290,10 @@
             const formData = new FormData();
             formData.append('file', file);
             try {
-                const response = await fetch(`${YYFUrl}/api/upload`, { method: 'POST', body: formData });
+                const response = await fetch(`${YYFUrl}/upload`, { method: 'POST', body: formData });
                 if (!response.ok) throw new Error('Upload failed');
                 const result = await response.json();
-                const fullUrl = YYFUrl + result.fileUrl;
+                const fullUrl = `${YYFUrl}/file/${result.id}`;
                 window.app.state.draftBot.avatar = fullUrl;
                 els.avatarUploadStatus.innerText = "¡Subida exitosa!";
                 els.avatarUploadStatus.classList.add('text-green-500');
@@ -1371,6 +1412,11 @@
         const clearChat = async () => {
             if (window.app.state.user && window.app.state.currentSessionId && window.app.state.currentSessionId !== 'local') {
                 try {
+                    const messagesRef = collection(db, 'artifacts', appId, 'users', window.app.state.user.uid, 'chat_sessions', window.app.state.currentSessionId, 'messages');
+                    const messagesSnap = await getDocs(messagesRef);
+                    for (const mDoc of messagesSnap.docs) {
+                        await deleteDoc(doc(db, 'artifacts', appId, 'users', window.app.state.user.uid, 'chat_sessions', window.app.state.currentSessionId, 'messages', mDoc.id));
+                    }
                     const sessionRef = doc(db, 'artifacts', appId, 'users', window.app.state.user.uid, 'chat_sessions', window.app.state.currentSessionId);
                     await deleteDoc(sessionRef);
                 } catch (e) { console.error("Error deleting chat session", e); }
@@ -1407,9 +1453,15 @@
                     savedContent = CryptoJS.AES.encrypt(JSON.stringify(content), window.app.state.sessionPassword).toString();
                     isEncryptedMsg = true;
                 }
+                const messagesRef = collection(db, 'artifacts', appId, 'users', window.app.state.user.uid, 'chat_sessions', sessionId, 'messages');
+                await addDoc(messagesRef, {
+                    role,
+                    content: savedContent,
+                    ts: Date.now(),
+                    enc: isEncryptedMsg
+                });
                 const sessionRef = doc(db, 'artifacts', appId, 'users', window.app.state.user.uid, 'chat_sessions', sessionId);
                 await setDoc(sessionRef, {
-                    messages: arrayUnion({ role, content: savedContent, ts: Date.now(), enc: isEncryptedMsg }),
                     updatedAt: Date.now()
                 }, { merge: true });
             } catch (e) {
@@ -1443,6 +1495,79 @@
             } catch (e) { }
         }
 
+        const openMemoriesModal = async () => {
+            els.views.memories.classList.remove('hidden');
+            window.app.state.memoriesSearchQuery = '';
+            els.inputs.memoriesSearch.value = '';
+            await window.app.renderMemories();
+        };
+
+        const closeMemoriesModal = () => {
+            els.views.memories.classList.add('hidden');
+        };
+
+        const filterMemories = (query) => {
+            window.app.state.memoriesSearchQuery = query.toLowerCase();
+            window.app.renderMemories();
+        };
+
+        const renderMemories = async () => {
+            if (!window.app.state.currentBot) return;
+            const listEl = els.memoriesList;
+            listEl.innerHTML = '<div class="text-center py-4"><i class="fa-solid fa-circle-notch fa-spin text-purple-500"></i> Cargando memorias...</div>';
+
+            try {
+                const botData = await getBotData(window.app.state.currentBot.id);
+                let memories = botData.items || [];
+
+                if (window.app.state.memoriesSearchQuery) {
+                    memories = memories.filter(m => m.toLowerCase().includes(window.app.state.memoriesSearchQuery));
+                }
+
+                if (memories.length === 0) {
+                    listEl.innerHTML = '<div class="text-center py-8 text-gray-500"><i class="fa-solid fa-brain text-4xl mb-3 text-gray-300 block"></i> No hay memorias aún o no coinciden con la búsqueda.</div>';
+                    return;
+                }
+
+                listEl.innerHTML = '';
+                // Render from newest to oldest
+                memories.slice().reverse().forEach((memory, idx) => {
+                    // Re-calculate original index since we reversed and filtered
+                    const originalIndex = botData.items.indexOf(memory);
+                    const memoryEl = document.createElement('div');
+                    memoryEl.className = "flex justify-between items-start bg-gray-50 p-3 rounded-xl border border-gray-200 group";
+                    memoryEl.innerHTML = `
+                        <div class="text-sm text-gray-700 flex-1 pr-3 break-words">${memory}</div>
+                        <button onclick="app.deleteMemory(${originalIndex})" class="text-gray-400 hover:text-red-500 w-8 h-8 rounded-full flex items-center justify-center hover:bg-gray-200 shrink-0 opacity-0 md:group-hover:opacity-100 transition-opacity" title="Borrar memoria" style="opacity: 1;">
+                            <i class="fa-solid fa-trash-can text-sm"></i>
+                        </button>
+                    `;
+                    listEl.appendChild(memoryEl);
+                });
+            } catch (e) {
+                console.error(e);
+                listEl.innerHTML = '<div class="text-center py-4 text-red-500">Error al cargar memorias.</div>';
+            }
+        };
+
+        const deleteMemory = async (index) => {
+            if (!confirm("¿Seguro que quieres borrar esta memoria?")) return;
+            try {
+                const botData = await getBotData(window.app.state.currentBot.id);
+                let memories = botData.items || [];
+
+                if (index >= 0 && index < memories.length) {
+                    memories.splice(index, 1);
+                    const docRef = doc(db, 'artifacts', appId, 'users', window.app.state.user.uid, 'memories', window.app.state.currentBot.id);
+                    await setDoc(docRef, { items: memories }, { merge: true });
+                    await window.app.renderMemories();
+                }
+            } catch (e) {
+                console.error("Error al borrar memoria:", e);
+                alert("Hubo un error al borrar la memoria.");
+            }
+        };
+
         const sendMessage = async () => {
             if (window.app.state.isChatStopped) return;
             const text = els.inputs.message.value.trim(); if (!text && !window.app.state.attachedImage) return;
@@ -1454,7 +1579,8 @@
             els.inputs.message.value = ''; window.app.appendMessage('user', displayContent);
 
             els.chat.sendBtn.disabled = true;
-            els.inputs.message.disabled = true;
+            // dejame escribir en la barra de chat mientras genera
+            els.inputs.message.disabled = false;
 
             const now = new Date();
             const timestamp = `[${now.getDate().toString().padStart(2, '0')}/${(now.getMonth() + 1).toString().padStart(2, '0')}/${now.getFullYear()} ${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}]`;
@@ -1510,8 +1636,27 @@
             let currentInstructions = window.app.constants.PRE_SYSTEM_PROMPT + "\n" + timeContext + memoryText + "\n[PERSONALIDAD]: " + window.app.state.currentBot.systemPrompt;
             if (window.app.state.currentBot.isDanMode) currentInstructions += "\n\n" + danPromptContent;
 
-            let messagesPayload = [{ role: "system", content: currentInstructions }, ...window.app.state.chatHistory];
+            // Lógica de truncado de contexto por caracteres
+            let maxChars = 125000;
+            let systemChars = currentInstructions.length;
+            let availableChars = maxChars - systemChars;
 
+            let truncatedHistory = [];
+            let currentChars = 0;
+
+            // Recorremos de más nuevo a más viejo
+            for (let i = window.app.state.chatHistory.length - 1; i >= 0; i--) {
+                let msg = window.app.state.chatHistory[i];
+                let msgLen = typeof msg.content === 'string' ? msg.content.length : JSON.stringify(msg.content).length;
+
+                if (currentChars + msgLen > availableChars && truncatedHistory.length > 0) {
+                    break; // Si nos pasamos del límite, cortamos el historial por arriba
+                }
+                truncatedHistory.unshift(msg);
+                currentChars += msgLen;
+            }
+
+            let messagesPayload = [{ role: "system", content: currentInstructions }, ...truncatedHistory];
             const delay = ms => new Promise(res => setTimeout(res, ms));
             for (let i = 0; i < 3; i++) {
                 try {
@@ -1563,7 +1708,7 @@
                                 if (json.choices?.[0]?.delta?.content) {
                                     const chunk = json.choices[0].delta.content; fullResponse += chunk;
 
-                                    const imgRegex = /\[IMG:(.*?)\]/g;
+                                    const imgRegex = /\[IMG:([\s\S]*?)\]/g;
                                     let match;
                                     while ((match = imgRegex.exec(fullResponse)) !== null) {
                                         const fullTag = match[0];
@@ -1688,16 +1833,55 @@
             }
         };
 
-        const generateImage = (prompt, imgId, fullTag) => {
-            const encodedPrompt = encodeURIComponent(prompt);
-            const seed = (prompt.length * 42) % 1000;
-            const url = `https://freeai.logise1123.workers.dev/image/${encodedPrompt}?raw=true&nologo=true&seed=${seed}`;
-            const img = new Image();
-            img.src = url;
-            img.onload = () => {
+        const generateImage = async (prompt, imgId, fullTag) => {
+            const cleanPrompt = prompt.replace(/\r?\n/g, ' ').trim();
+            const encodedPrompt = encodeURIComponent(cleanPrompt);
+            const generatorUrl = `https://freeai.logise1123.workers.dev/image/prompt/${encodedPrompt}?nologo=true`;
+            try {
+                // Descargar la imagen del worker como blob
+                const imageResponse = await fetch(generatorUrl);
+                if (!imageResponse.ok) throw new Error("Failed to generate image from worker");
+                const imageBlob = await imageResponse.blob();
+
+                // Subir a YeetYourFiles (YYF)
+                const formData = new FormData();
+                formData.append('file', imageBlob, `generated-${imgId}.jpg`);
+
+                const uploadResponse = await fetch(`${YYFUrl}/upload`, {
+                    method: 'POST',
+                    body: formData
+                });
+                if (!uploadResponse.ok) throw new Error("Failed to upload generated image to storage");
+                
+                const uploadResult = await uploadResponse.json();
+                const uploadedUrl = `${YYFUrl}/file/${uploadResult.id}`;
+
+                // Marcar como completado y guardar la URL permanente de YYF
                 window.app.state.generatedImages[fullTag].status = 'done';
-                window.app.state.generatedImages[fullTag].url = url;
-            };
+                window.app.state.generatedImages[fullTag].url = uploadedUrl;
+
+                // Remplazar el placeholder directamente en el DOM para inmediatez
+                const placeholderEl = document.getElementById(imgId);
+                if (placeholderEl) {
+                    const parentEl = placeholderEl.parentElement;
+                    if (parentEl) {
+                        const widget = document.createElement('div');
+                        widget.className = "my-2 w-72 aspect-square relative group";
+                        widget.innerHTML = `<img src="${uploadedUrl}" class="rounded-lg w-full h-full object-cover no-drag border border-gray-200" oncontextmenu="return false;">
+                                            <button onclick="window.app.downloadImage('${uploadedUrl}')" class="absolute top-2 right-2 bg-black/50 hover:bg-black/70 text-white p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <i class="fa-solid fa-download"></i>
+                                            </button>`;
+                        parentEl.replaceChild(widget, placeholderEl);
+                    }
+                }
+            } catch (error) {
+                console.error("Error generating/uploading image:", error);
+                const placeholderEl = document.getElementById(imgId);
+                if (placeholderEl) {
+                    placeholderEl.innerHTML = `<span class="text-red-500 text-xs font-semibold p-4 text-center">Error al generar imagen</span>`;
+                    placeholderEl.classList.remove('shimmer');
+                }
+            }
         };
 
         const stopChat = () => { window.app.state.isChatStopped = true; els.inputs.message.disabled = true; els.chat.sendBtn.disabled = true; els.chat.statusMsg.innerText = "Chat finalizado por el bot."; els.chat.statusMsg.classList.remove('hidden'); };
@@ -1741,26 +1925,31 @@
                 if (!snap.exists()) return;
                 const sessionData = snap.data();
 
+                const messagesRef = collection(db, 'artifacts', appId, 'users', window.app.state.user.uid, 'chat_sessions', window.app.state.currentSessionId, 'messages');
+                const messagesSnap = await getDocs(messagesRef);
+
                 if (sessionData.isEncrypted) {
                     const conf = confirm("El chat ya está bloqueado. ¿Deseas quitar la contraseña?");
                     if (conf) {
-                        let decryptedMsgs = [];
-                        for (let m of sessionData.messages || []) {
+                        for (let mDoc of messagesSnap.docs) {
+                            let m = mDoc.data();
                             if (m.enc) {
                                 try {
                                     const bytes = CryptoJS.AES.decrypt(m.content, window.app.state.sessionPassword);
                                     const decStr = bytes.toString(CryptoJS.enc.Utf8);
                                     if (!decStr) throw new Error("bad pwd");
-                                    m.content = JSON.parse(decStr);
-                                    m.enc = false;
+                                    const decContent = JSON.parse(decStr);
+                                    await updateDoc(doc(db, 'artifacts', appId, 'users', window.app.state.user.uid, 'chat_sessions', window.app.state.currentSessionId, 'messages', mDoc.id), {
+                                        content: decContent,
+                                        enc: false
+                                    });
                                 } catch (e) {
                                     alert("Error al desencriptar. Asegúrate de haber entrado con la contraseña correcta.");
                                     return;
                                 }
                             }
-                            decryptedMsgs.push(m);
                         }
-                        await updateDoc(sessionRef, { isEncrypted: false, messages: decryptedMsgs });
+                        await updateDoc(sessionRef, { isEncrypted: false });
                         window.app.state.sessionPassword = null;
                         document.getElementById('btn-lock-chat').innerHTML = '<i class="fa-solid fa-lock-open"></i>';
                         document.getElementById('btn-lock-chat').classList.remove('text-amber-500');
@@ -1770,15 +1959,17 @@
                 } else {
                     const pwd = prompt("Introduce una contraseña para encriptar y bloquear este chat:");
                     if (!pwd) return;
-                    let encryptedMsgs = [];
-                    for (let m of sessionData.messages || []) {
+                    for (let mDoc of messagesSnap.docs) {
+                        let m = mDoc.data();
                         if (!m.enc) {
-                            m.content = CryptoJS.AES.encrypt(JSON.stringify(m.content), pwd).toString();
-                            m.enc = true;
+                            const encContent = CryptoJS.AES.encrypt(JSON.stringify(m.content), pwd).toString();
+                            await updateDoc(doc(db, 'artifacts', appId, 'users', window.app.state.user.uid, 'chat_sessions', window.app.state.currentSessionId, 'messages', mDoc.id), {
+                                content: encContent,
+                                enc: true
+                            });
                         }
-                        encryptedMsgs.push(m);
                     }
-                    await updateDoc(sessionRef, { isEncrypted: true, messages: encryptedMsgs });
+                    await updateDoc(sessionRef, { isEncrypted: true });
                     window.app.state.sessionPassword = pwd;
                     document.getElementById('btn-lock-chat').innerHTML = '<i class="fa-solid fa-lock"></i>';
                     document.getElementById('btn-lock-chat').classList.add('text-amber-500');
@@ -1799,7 +1990,8 @@
             toggleChatLock,
             handleBotClick, showPaymentModal, showChatModeSelection, processPayment, toggleChatSidebar, loadChatSidebar, openChat, openVoiceChat, likeBot, startCreation, editBot, goToPromptEditor, publishBot, deleteBot, askClearChat, clearChat, appendMessage, saveChatMessage, sendMessage, stopChat, switchLeaderboardTab, showLeaderboard, backToDetails,
             handleImageUpload, handlePixtralImageUpload, handleFileUpload, clearImageAttachment, downloadImage, generateImage, handleAvatarUpload,
-            renderChatHeader, renameCurrentSession, createNewSessionForBot, scrollToBottom, forceScrollToBottom
+            renderChatHeader, renameCurrentSession, createNewSessionForBot, scrollToBottom, forceScrollToBottom,
+            openMemoriesModal, closeMemoriesModal, renderMemories, filterMemories, deleteMemory
         };
 
         window.app.constants = {
