@@ -112,7 +112,8 @@
         const auth = getAuth(app);
         const db = getFirestore(app);
         const appId = "aiportal-ce688";
-        const mistralApiKey = "mjVkbhVGVY43LJNMttSLDYOFSYFSkOuv";
+        const aiApiKey = "pk_live_1bbaae0dfbab70bfcb2244232c0a7205f81cd235d054afe0";
+        const aiApiUrl = "https://gen.pollinations.ai";
 
         // Instrucciones de sistema optimizadas para voz
         const PRE_SYSTEM_PROMPT = " [SYSTEM: ESTÁS EN MODO DE VOZ. REGLAS ESTRICTAS: 1. NO uses Markdown nunca (nada de asteriscos, negritas o listas). Solo texto plano. 2. Usa frases CORTAS, conversacionales y directas, fáciles de escuchar. 3. MEMORIA: Tienes acceso a recuerdos previos del usuario, ÚSALOS para dar contexto. 4. Si el usuario te cuenta algo nuevo importante (gustos, hechos, etc.), GUÁRDALO escribiendo [MEMO:dato] al final. El usuario NO escuchará lo que pongas entre corchetes, solo tu respuesta hablada.] ";
@@ -357,10 +358,10 @@
             // Bucle de reintentos (Retries)
             for (let i = 0; i < 3; i++) {
                 try {
-                    const response = await fetch("https://api.mistral.ai/v1/chat/completions", {
-                        method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${mistralApiKey}` },
+                    const response = await fetch(`${aiApiUrl}/v1/chat/completions`, {
+                        method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${aiApiKey}` },
                         body: JSON.stringify({
-                            model: "mistral-medium-latest",
+                            model: "gemini-1.5-flash",
                             messages: [{ role: "system", content: systemContent }, ...chatHistory]
                         })
                     });
